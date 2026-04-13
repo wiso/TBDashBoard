@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tb-monitor"
+version = "0.1.0"
+description = "Offline monitoring dashboard for CERN SPS test beam data"
+requires-python = ">=3.10"
+dependencies = [
+    "dash>=2.17",
+    "plotly>=5.22",
+    "uproot>=5.3",
+    "awkward>=2.6",
+    "hist>=2.7",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+tb-monitor = "tb_monitor.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
