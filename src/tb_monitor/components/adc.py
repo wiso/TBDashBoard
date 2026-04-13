@@ -1,4 +1,8 @@
-"""ADC monitoring component: channel maps and per-channel statistics."""
+"""ADC monitoring component: calorimeter channel maps and per-channel statistics.
+
+Shows only the calorimeter channels (Scintillation 0–63 and Cherenkov 64–127),
+excluding auxiliary/special channels which are in the AuxComponent.
+"""
 
 from __future__ import annotations
 
@@ -11,11 +15,19 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import Input, Output, dcc, html, no_update
 
+from tb_monitor.backend.channel_map import (
+    CHERENKOV_CHANNELS,
+    SCINTILLATION_CHANNELS,
+)
 from tb_monitor.components.base import Component
 from tb_monitor.themes import THEMES
 
 _N_CHANNELS = 224
 _ADC_BINS, _ADC_LO, _ADC_HI = 512, 0.0, 4096.0
+_CALO_CHANNELS = sorted(SCINTILLATION_CHANNELS + CHERENKOV_CHANNELS)
+_CALO_IDX = np.array(_CALO_CHANNELS)
+_S_SET = frozenset(SCINTILLATION_CHANNELS)
+_C_SET = frozenset(CHERENKOV_CHANNELS)
 
 
 @dataclass
@@ -37,8 +49,11 @@ class ADCResults:
     """Immutable results for the ADC tab."""
 
     adc_2d: hist.Hist
-    mean: np.ndarray
+    mean: np.ndarray       # length _N_CHANNELS (all 224)
     std: np.ndarray
+    calo_channels: np.ndarray   # indices of calo-only channels
+    s_mask: np.ndarray          # bool mask into calo_channels for S
+    c_mask: np.ndarray          # bool mask into calo_channels for C
 
 
 class ADCComponent(Component):
@@ -86,13 +101,19 @@ class ADCComponent(Component):
             var = state.adc_sum_sq / n - mean**2
             np.clip(var, 0.0, None, out=var)
             std = np.sqrt(var)
-        return ADCResults(adc_2d=state.adc_2d, mean=mean, std=std)
+
+        s_mask = np.array([ch in _S_SET for ch in _CALO_CHANNELS])
+        c_mask = np.array([ch in _C_SET for ch in _CALO_CHANNELS])
+        return ADCResults(
+            adc_2d=state.adc_2d, mean=mean, std=std,
+            calo_channels=_CALO_IDX, s_mask=s_mask, c_mask=c_mask,
+        )
 
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
         return html.Div([
-            html.H3("ADC Mean per Channel"),
+            html.H3("Calorimeter ADC Mean per Channel (S & C)"),
             dcc.Graph(id="adc-mean-plot"),
             html.H3("ADC 2D Map (Channel vs ADC)"),
             dcc.Graph(id="adc-2d-plot"),
@@ -109,11 +130,23 @@ class ADCComponent(Component):
                 return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             r = get_results(path)
-            channels = np.arange(len(r.mean))
-            fig = go.Figure(go.Scatter(
-                x=channels, y=r.mean,
-                error_y=dict(type="data", array=r.std, visible=True),
-                mode="markers", marker=dict(size=3),
+            chs = r.calo_channels
+            means = r.mean[chs]
+            stds = r.std[chs]
+            fig = go.Figure()
+            # Scintillation trace
+            fig.add_trace(go.Scatter(
+                x=chs[r.s_mask], y=means[r.s_mask],
+                error_y=dict(type="data", array=stds[r.s_mask], visible=True),
+                mode="markers", marker=dict(size=4, color="#636EFA"),
+                name="Scintillation",
+            ))
+            # Cherenkov trace
+            fig.add_trace(go.Scatter(
+                x=chs[r.c_mask], y=means[r.c_mask],
+                error_y=dict(type="data", array=stds[r.c_mask], visible=True),
+                mode="markers", marker=dict(size=4, color="#EF553B"),
+                name="Cherenkov",
             ))
             fig.update_layout(
                 template=template,
@@ -133,9 +166,15 @@ class ADCComponent(Component):
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             h = get_results(path).adc_2d
             values, xedges, yedges = h.to_numpy()
+            # Restrict to calorimeter channels (0-127 excl. specials)
+            calo_bins = _CALO_IDX
+            xcenters = 0.5 * (xedges[:-1] + xedges[1:])
+            # Find bin indices closest to each calo channel
+            bin_idx = np.searchsorted(xcenters, calo_bins)
+            bin_idx = np.clip(bin_idx, 0, len(xcenters) - 1)
             fig = go.Figure(go.Heatmap(
-                z=values.T,
-                x=0.5 * (xedges[:-1] + xedges[1:]),
+                z=values[bin_idx].T,
+                x=calo_bins,
                 y=0.5 * (yedges[:-1] + yedges[1:]),
                 colorscale="Viridis",
             ))

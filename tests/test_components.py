@@ -10,7 +10,13 @@ import hist
 import numpy as np
 import pytest
 
+from tb_monitor.backend.channel_map import (
+    AUX_CHANNEL_SET,
+    CHERENKOV_CHANNELS,
+    SCINTILLATION_CHANNELS,
+)
 from tb_monitor.components.adc import ADCComponent, ADCResults, ADCState
+from tb_monitor.components.aux import AuxComponent, AuxResults
 from tb_monitor.components.overview import (
     OverviewComponent,
     OverviewResults,
@@ -122,6 +128,22 @@ class TestADCComponent:
         # Mean should be roughly in the middle of 0-4096
         assert 1500 < result.mean.mean() < 2500
 
+    def test_calo_channels_exclude_aux(
+        self, comp: ADCComponent, cernsps_batch: ak.Array
+    ) -> None:
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        result = comp.finalize(state)
+
+        # calo_channels should only contain S and C channels
+        calo_set = set(result.calo_channels.tolist())
+        assert calo_set == set(SCINTILLATION_CHANNELS + CHERENKOV_CHANNELS)
+        assert calo_set.isdisjoint(AUX_CHANNEL_SET)
+        # s_mask and c_mask should partition calo_channels
+        assert result.s_mask.sum() == len(SCINTILLATION_CHANNELS)
+        assert result.c_mask.sum() == len(CHERENKOV_CHANNELS)
+        assert (result.s_mask | result.c_mask).all()
+
     def test_online_mean_matches_direct(
         self, comp: ADCComponent, cernsps_batch: ak.Array
     ) -> None:
@@ -167,6 +189,70 @@ class TestADCComponent:
         combined = np.concatenate([a1, a2], axis=0)
         np.testing.assert_allclose(result.mean, combined.mean(axis=0), atol=1e-10)
         np.testing.assert_allclose(result.std, combined.std(axis=0), atol=1e-10)
+
+
+# ── Aux Component ───────────────────────────────────────────────────
+
+
+class TestAuxComponent:
+    """Tests for AuxComponent batch accumulation and finalize."""
+
+    @pytest.fixture()
+    def comp(self) -> AuxComponent:
+        return AuxComponent()
+
+    def test_name_and_label(self, comp: AuxComponent) -> None:
+        assert comp.name == "aux"
+        assert comp.label == "Auxiliary"
+
+    def test_tree_branches(self, comp: AuxComponent) -> None:
+        assert comp.tree_branches() == {"CERNSPS2025": ["ADCs"]}
+
+    def test_fill_and_finalize(
+        self, comp: AuxComponent, cernsps_batch: ak.Array
+    ) -> None:
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        result = comp.finalize(state)
+
+        assert isinstance(result, AuxResults)
+        # Beam counters: PS, Veto, Tail Catcher, Muon, Cher1-3
+        assert "Muon" in result.beam_mean
+        assert "PS" in result.beam_mean
+        assert len(result.beam_mean) == 7
+        # Leakage counters: L1-L16
+        assert len(result.leak_labels) == 16
+        assert result.leak_mean.shape == (16,)
+        assert result.leak_std.shape == (16,)
+
+    def test_beam_mean_matches_direct(
+        self, comp: AuxComponent, cernsps_batch: ak.Array
+    ) -> None:
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        result = comp.finalize(state)
+
+        adcs = np.asarray(cernsps_batch["ADCs"], dtype=np.float64)
+        # Check muon counter (channel 161)
+        expected_mean = adcs[:, 161].mean()
+        np.testing.assert_allclose(result.beam_mean["Muon"], expected_mean, atol=1e-10)
+
+    def test_leakage_mean_matches_direct(
+        self, comp: AuxComponent, cernsps_batch: ak.Array
+    ) -> None:
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        result = comp.finalize(state)
+
+        adcs = np.asarray(cernsps_batch["ADCs"], dtype=np.float64)
+        expected = adcs[:, 128:144].mean(axis=0)
+        np.testing.assert_allclose(result.leak_mean, expected, atol=1e-10)
+
+    def test_empty_finalize(self, comp: AuxComponent) -> None:
+        state = comp.create_state("")
+        result = comp.finalize(state)
+        assert all(v == 0.0 for v in result.beam_mean.values())
+        np.testing.assert_array_equal(result.leak_mean, np.zeros(16))
 
 
 # ── SiPM Component ─────────────────────────────────────────────────
