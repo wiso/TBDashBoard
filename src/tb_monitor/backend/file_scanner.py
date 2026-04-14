@@ -35,6 +35,9 @@ def scan_directory(directory: str | Path) -> list[RunFile]:
         List of discovered run files, sorted by run number.
     """
     directory = Path(directory)
+    if not directory.is_dir():
+        logger.warning("Data directory does not exist: %s", directory)
+        return []
     results: list[RunFile] = []
     pattern = re.compile(get_settings().run_file_pattern, re.IGNORECASE)
 

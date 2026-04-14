@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import traceback
 from typing import Any
 
 from dash import Dash, Input, Output, no_update
@@ -10,6 +12,8 @@ from tb_monitor.backend.histograms import process_run
 from tb_monitor.components import COMPONENTS
 from tb_monitor.settings import get_settings
 from tb_monitor.themes import THEMES
+
+logger = logging.getLogger(__name__)
 
 # Module-level cache: replaced atomically when the user selects a run.
 _current_run_path: str | None = None
@@ -61,17 +65,35 @@ def register_callbacks(app: Dash) -> None:
         Output("run-metadata", "children"),
         Output("run-data-loaded", "data"),
         Output("loading-trigger", "children"),
+        Output("run-error", "children"),
+        Output("run-error", "style"),
         Input("run-selector", "value"),
     )
     def load_run(path: str | None):
+        hidden = {"display": "none"}
+        visible = {
+            "display": "block",
+            "backgroundColor": "#f8d7da",
+            "color": "#721c24",
+            "border": "1px solid #f5c6cb",
+            "borderRadius": "6px",
+            "padding": "12px 16px",
+            "marginBottom": "12px",
+            "whiteSpace": "pre-wrap",
+        }
         if not path:
-            return "", no_update, no_update
-        results = _get_all_results(path)
+            return "", no_update, no_update, "", hidden
+        try:
+            results = _get_all_results(path)
+        except Exception:
+            logger.exception("Failed to process run %s", path)
+            msg = f"Error loading {path}:\n{traceback.format_exc()}"
+            return "", no_update, "", msg, visible
         meta = results.get("_metadata", {})
         overview = results.get("overview")
         n_events = getattr(overview, "n_events", "?")
         info = f"Run {meta.get('runNumber', '?')} — {n_events} events"
-        return info, path, ""
+        return info, path, "", "", hidden
 
     _tab_map = {f"tab-{comp.name}": comp for comp in COMPONENTS}
 

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,7 @@ class Settings:
 
     leakage_range: tuple[int, int] = (128, 144)
     muon_channel: int = 161
+    veto_channel: int = 63
     pedestal_trigger_mask: int = 2
 
     # ── overview histogram ──────────────────────────────────────────
@@ -102,8 +107,14 @@ def load_settings(path: str | Path | None = None) -> Settings:
         return Settings()
 
     path = Path(path)
-    with path.open("rb") as f:
-        raw = tomllib.load(f)
+    if not path.is_file():
+        raise FileNotFoundError(f"Config file not found: {path}")
+
+    try:
+        with path.open("rb") as f:
+            raw = tomllib.load(f)
+    except tomllib.TOMLDecodeError as exc:
+        raise ValueError(f"Malformed TOML in {path}: {exc}") from exc
 
     kwargs: dict[str, Any] = {}
 
@@ -144,7 +155,17 @@ def load_settings(path: str | Path | None = None) -> Settings:
             int(k): v for k, v in raw["detector"]["special_channels"].items()
         }
 
-    return Settings(**kwargs)
+    settings = Settings(**kwargs)
+
+    # Validate regex pattern eagerly so errors surface at startup.
+    try:
+        re.compile(settings.run_file_pattern)
+    except re.error as exc:
+        raise ValueError(
+            f"Invalid run_file_pattern {settings.run_file_pattern!r}: {exc}"
+        ) from exc
+
+    return settings
 
 
 # ── Module-level singleton ──────────────────────────────────────────

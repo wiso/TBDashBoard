@@ -88,6 +88,20 @@ def make_layout(run_options: list[dict]) -> html.Div:
                 ],
             ),
             dcc.Store(id="run-data-loaded", data=None),
+            # Error banner — hidden by default, shown on processing failures
+            html.Div(
+                id="run-error",
+                style={
+                    "display": "none",
+                    "backgroundColor": "#f8d7da",
+                    "color": "#721c24",
+                    "border": "1px solid #f5c6cb",
+                    "borderRadius": "6px",
+                    "padding": "12px 16px",
+                    "marginBottom": "12px",
+                    "whiteSpace": "pre-wrap",
+                },
+            ),
             dcc.Tabs(id="tabs", value=default_tab, children=tabs),
             dcc.Loading(
                 id="tab-loading",
