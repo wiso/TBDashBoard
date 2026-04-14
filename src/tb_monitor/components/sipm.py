@@ -27,6 +27,10 @@ class SiPMState:
     profile_lg: hist.Hist  # Mean of LG when ADC != 0
     zero_counts: np.ndarray  # Number of events with HG == 0
     total_counts: int
+    sat_hg: hist.Hist  # Saturation counts per (threshold, channel) — HG
+    sat_lg: hist.Hist  # Saturation counts per (threshold, channel) — LG
+    nonzero_hg: np.ndarray  # Number of nonzero events per channel — HG
+    nonzero_lg: np.ndarray  # Number of nonzero events per channel — LG
 
 
 @dataclass(frozen=True)
@@ -40,12 +44,23 @@ class SiPMResults:
     lg_std: np.ndarray
     lg_n: np.ndarray
     zero_fraction: np.ndarray
+    sat_frac_hg: np.ndarray  # shape (n_thresholds, n_ch)
+    sat_frac_lg: np.ndarray  # shape (n_thresholds, n_ch)
+    sat_thresholds: tuple[int, ...]
 
 
 def _make_profile(n_ch: int) -> hist.Hist:
     return hist.Hist(
         hist.axis.Integer(0, n_ch, name="ch"),
         storage=hist.storage.Mean(),
+    )
+
+
+def _make_saturation_hist(n_ch: int, thresholds: tuple[int, ...]) -> hist.Hist:
+    return hist.Hist(
+        hist.axis.IntCategory(thresholds, name="threshold"),
+        hist.axis.Integer(0, n_ch, name="ch"),
+        storage=hist.storage.Int64(),
     )
 
 
@@ -76,12 +91,18 @@ class SiPMComponent(Component):
         return {"SiPM_rawTree_aligned": ["SiPM_HG", "SiPM_LG"]}
 
     def create_state(self, path: str) -> SiPMState:
-        n_ch = get_settings().n_sipm_channels
+        s = get_settings()
+        n_ch = s.n_sipm_channels
+        thresholds = s.sipm_saturation_thresholds
         return SiPMState(
             profile_hg=_make_profile(n_ch),
             profile_lg=_make_profile(n_ch),
             zero_counts=np.zeros(n_ch, dtype=np.int64),
             total_counts=0,
+            sat_hg=_make_saturation_hist(n_ch, thresholds),
+            sat_lg=_make_saturation_hist(n_ch, thresholds),
+            nonzero_hg=np.zeros(n_ch, dtype=np.int64),
+            nonzero_lg=np.zeros(n_ch, dtype=np.int64),
         )
 
     def fill_batch(self, state: SiPMState, tree_name: str, batch: ak.Array) -> None:
@@ -97,10 +118,21 @@ class SiPMComponent(Component):
         hg_mask = hg != 0
         if hg_mask.any():
             state.profile_hg.fill(ch=channels[hg_mask], sample=hg[hg_mask])
+            state.nonzero_hg += hg_mask.sum(axis=0)
 
         lg_mask = lg != 0
         if lg_mask.any():
             state.profile_lg.fill(ch=channels[lg_mask], sample=lg[lg_mask])
+            state.nonzero_lg += lg_mask.sum(axis=0)
+
+        # Saturation: for each threshold, fill channels where ADC >= threshold
+        for thr in state.sat_hg.axes["threshold"]:
+            hg_sat = hg >= thr
+            if hg_sat.any():
+                state.sat_hg.fill(threshold=thr, ch=channels[hg_sat])
+            lg_sat = lg >= thr
+            if lg_sat.any():
+                state.sat_lg.fill(threshold=thr, ch=channels[lg_sat])
 
     def finalize(self, state: SiPMState) -> SiPMResults:
         hg_mean, hg_std, hg_n = _extract_mean_std(state.profile_hg)
@@ -110,6 +142,22 @@ class SiPMComponent(Component):
             zero_frac = np.where(
                 state.total_counts > 0,
                 state.zero_counts / state.total_counts,
+                0.0,
+            )
+
+        # Saturation fractions: counts_above_thr / nonzero_events per channel
+        thresholds = tuple(state.sat_hg.axes["threshold"])
+        sat_counts_hg = state.sat_hg.view()  # shape (n_thresholds, n_ch)
+        sat_counts_lg = state.sat_lg.view()
+        with np.errstate(invalid="ignore", divide="ignore"):
+            sat_frac_hg = np.where(
+                state.nonzero_hg > 0,
+                sat_counts_hg / state.nonzero_hg,
+                0.0,
+            )
+            sat_frac_lg = np.where(
+                state.nonzero_lg > 0,
+                sat_counts_lg / state.nonzero_lg,
                 0.0,
             )
 
@@ -132,6 +180,9 @@ class SiPMComponent(Component):
             lg_std=lg_std,
             lg_n=lg_n,
             zero_fraction=zero_frac,
+            sat_frac_hg=sat_frac_hg,
+            sat_frac_lg=sat_frac_lg,
+            sat_thresholds=thresholds,
         )
 
     # ── frontend ────────────────────────────────────────────────────
@@ -158,6 +209,23 @@ class SiPMComponent(Component):
                 ),
                 html.H3("SiPM Zero-ADC Fraction per Channel (HG)"),
                 dcc.Graph(id="sipm-zero-fraction-plot"),
+                html.Div(
+                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
+                    children=[
+                        html.Div(
+                            [
+                                html.H3("SiPM HG Saturation Fraction"),
+                                dcc.Graph(id="sipm-sat-hg-plot"),
+                            ]
+                        ),
+                        html.Div(
+                            [
+                                html.H3("SiPM LG Saturation Fraction"),
+                                dcc.Graph(id="sipm-sat-lg-plot"),
+                            ]
+                        ),
+                    ],
+                ),
             ]
         )
 
@@ -250,3 +318,56 @@ class SiPMComponent(Component):
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig
+
+        def _saturation_fig(sat_frac, thresholds, template, title):
+            """Step plot with one trace per threshold."""
+            channels = np.arange(sat_frac.shape[1])
+            fig = go.Figure()
+            for i, thr in enumerate(thresholds):
+                fig.add_trace(
+                    go.Scatter(
+                        x=channels,
+                        y=sat_frac[i],
+                        mode="lines",
+                        line_shape="hv",
+                        name=f"≥ {thr}",
+                    )
+                )
+            fig.update_layout(
+                template=template,
+                xaxis_title="SiPM Channel",
+                yaxis_title="Fraction of nonzero events",
+                margin=dict(l=50, r=30, t=30, b=50),
+                legend=dict(title="Threshold"),
+            )
+            return fig
+
+        @app.callback(
+            Output("sipm-sat-hg-plot", "figure"),
+            Input("run-data-loaded", "data"),
+            Input("theme-store", "data"),
+            Input("batch-counter", "data"),
+        )
+        def update_sipm_sat_hg(path: str | None, theme: str, _batch: int) -> Any:
+            if not path:
+                return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
+            return _saturation_fig(r.sat_frac_hg, r.sat_thresholds, template, "HG")
+
+        @app.callback(
+            Output("sipm-sat-lg-plot", "figure"),
+            Input("run-data-loaded", "data"),
+            Input("theme-store", "data"),
+            Input("batch-counter", "data"),
+        )
+        def update_sipm_sat_lg(path: str | None, theme: str, _batch: int) -> Any:
+            if not path:
+                return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
+            return _saturation_fig(r.sat_frac_lg, r.sat_thresholds, template, "LG")

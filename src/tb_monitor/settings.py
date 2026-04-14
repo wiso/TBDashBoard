@@ -80,6 +80,9 @@ class Settings:
     # ── overview histogram ──────────────────────────────────────────
     event_rate_bins: int = 200
 
+    # ── SiPM saturation ────────────────────────────────────────────
+    sipm_saturation_thresholds: tuple[int, ...] = (3000, 3200, 3400, 3600, 3800, 4000, 4096)
+
     # ── component selection (empty = all) ───────────────────────────
     enabled_components: tuple[str, ...] = ()
 
@@ -155,6 +158,10 @@ def load_settings(path: str | Path | None = None) -> Settings:
         ("detector", "pedestal_trigger_mask"): "pedestal_trigger_mask",
         ("detector", "event_rate_bins"): "event_rate_bins",
     }
+
+    # SiPM saturation thresholds — stored as array in TOML.
+    if "detector" in raw and "sipm_saturation_thresholds" in raw["detector"]:
+        kwargs["sipm_saturation_thresholds"] = tuple(raw["detector"]["sipm_saturation_thresholds"])
 
     # Components list — lives under [components] section.
     if "components" in raw and "enabled" in raw["components"]:
