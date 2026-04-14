@@ -14,7 +14,7 @@ from typing import Any
 from dash import Dash, Input, Output, State, no_update
 
 from tb_monitor.backend.run_processor import RunStatus, get_processor
-from tb_monitor.components import COMPONENTS
+from tb_monitor.components import get_components
 from tb_monitor.themes import THEMES
 
 logger = logging.getLogger(__name__)
@@ -195,7 +195,8 @@ def register_callbacks(app: Dash) -> None:
 
     # ── Tab rendering ───────────────────────────────────────────────
 
-    _tab_map = {f"tab-{comp.name}": comp for comp in COMPONENTS}
+    components = get_components()
+    _tab_map = {f"tab-{comp.name}": comp for comp in components}
 
     @app.callback(
         Output("tab-content", "children"),
@@ -208,7 +209,7 @@ def register_callbacks(app: Dash) -> None:
         return comp.tab_layout()
 
     # ── Per-component callbacks ─────────────────────────────────────
-    for comp in COMPONENTS:
+    for comp in components:
 
         def _make_getter(component_name: str):
             """Closure to capture the component name."""

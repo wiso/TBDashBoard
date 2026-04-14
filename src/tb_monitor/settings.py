@@ -80,6 +80,9 @@ class Settings:
     # ── overview histogram ──────────────────────────────────────────
     event_rate_bins: int = 200
 
+    # ── component selection (empty = all) ───────────────────────────
+    enabled_components: tuple[str, ...] = ()
+
     # ── derived helpers ─────────────────────────────────────────────
 
     @property
@@ -153,6 +156,10 @@ def load_settings(path: str | Path | None = None) -> Settings:
         ("detector", "event_rate_bins"): "event_rate_bins",
     }
 
+    # Components list — lives under [components] section.
+    if "components" in raw and "enabled" in raw["components"]:
+        kwargs["enabled_components"] = tuple(raw["components"]["enabled"])
+
     for (section, key), field_name in _simple.items():
         if section in raw and key in raw[section]:
             kwargs[field_name] = raw[section][key]
@@ -175,6 +182,14 @@ def load_settings(path: str | Path | None = None) -> Settings:
         }
 
     settings = Settings(**kwargs)
+
+    # Validate enabled_components against known names.
+    _known = {"overview", "adc", "aux", "muon", "veto", "cherenkov", "sipm"}
+    for name in settings.enabled_components:
+        if name not in _known:
+            raise ValueError(
+                f"Unknown component {name!r} in enabled_components. Known: {sorted(_known)}"
+            )
 
     # Validate regex pattern eagerly so errors surface at startup.
     try:

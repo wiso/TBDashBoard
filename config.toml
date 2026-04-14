@@ -10,6 +10,11 @@ port = 8050
 step_size = 50_000                # Events per batch when iterating TTrees
 run_file_pattern = 'run(\d+)\.root$'
 
+# Active dashboard tabs.  Comment out or remove to show all.
+# Available: overview, adc, aux, muon, veto, cherenkov, sipm
+# [components]
+# enabled = ["overview", "adc", "aux", "muon", "veto", "cherenkov", "sipm"]
+
 [detector]
 n_adc_channels = 224
 n_sipm_channels = 1024

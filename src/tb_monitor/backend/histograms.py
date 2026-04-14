@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from tb_monitor.backend.data_loader import iter_tree, load_metadata, tree_num_entries
-from tb_monitor.components import COMPONENTS
+from tb_monitor.components import get_components
 from tb_monitor.components.base import Component
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def _prepare_run(
              tree_to_branches, total_entries).
     """
     if components is None:
-        components = COMPONENTS
+        components = get_components()
 
     metadata = load_metadata(path)
 

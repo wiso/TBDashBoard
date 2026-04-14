@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dash import dcc, html
 
-from tb_monitor.components import COMPONENTS
+from tb_monitor.components import get_components
 
 
 def make_layout(run_options: list[dict]) -> html.Div:
     """Create the main dashboard layout.
 
-    Tabs are generated automatically from :data:`COMPONENTS`.
+    Tabs are generated automatically from :func:`get_components`.
 
     Parameters
     ----------
@@ -22,8 +22,9 @@ def make_layout(run_options: list[dict]) -> html.Div:
     html.Div
         The top-level Dash layout.
     """
-    tabs = [dcc.Tab(label=comp.label, value=f"tab-{comp.name}") for comp in COMPONENTS]
-    default_tab = f"tab-{COMPONENTS[0].name}" if COMPONENTS else ""
+    components = get_components()
+    tabs = [dcc.Tab(label=comp.label, value=f"tab-{comp.name}") for comp in components]
+    default_tab = f"tab-{components[0].name}" if components else ""
 
     return html.Div(
         id="app-container",
@@ -39,11 +40,52 @@ def make_layout(run_options: list[dict]) -> html.Div:
                     "alignItems": "center",
                     "position": "relative",
                     "marginBottom": "6px",
+                    "background": "linear-gradient(135deg, #1a237e 0%, #0d47a1 50%, #01579b 100%)",
+                    "borderRadius": "10px",
+                    "padding": "18px 24px",
+                    "boxShadow": "0 2px 8px rgba(0,0,0,0.15)",
                 },
                 children=[
-                    html.H1(
-                        "TB2026 Detector Monitor",
-                        style={"textAlign": "center", "margin": "0"},
+                    html.Div(
+                        style={
+                            "display": "flex",
+                            "alignItems": "center",
+                            "gap": "14px",
+                        },
+                        children=[
+                            # CERN-style detector icon (SVG calorimeter symbol)
+                            html.Div(
+                                "◈",
+                                style={
+                                    "fontSize": "38px",
+                                    "color": "#fdd835",
+                                    "lineHeight": "1",
+                                },
+                            ),
+                            html.Div(
+                                children=[
+                                    html.H1(
+                                        "Dual-Readout Calorimeter",
+                                        style={
+                                            "margin": "0",
+                                            "fontSize": "1.6em",
+                                            "fontWeight": "700",
+                                            "color": "#ffffff",
+                                            "letterSpacing": "0.5px",
+                                        },
+                                    ),
+                                    html.Div(
+                                        "CERN SPS Test Beam 2025 — Monitoring Dashboard",
+                                        style={
+                                            "fontSize": "0.85em",
+                                            "color": "rgba(255,255,255,0.75)",
+                                            "marginTop": "2px",
+                                            "letterSpacing": "0.3px",
+                                        },
+                                    ),
+                                ],
+                            ),
+                        ],
                     ),
                     html.Button(
                         "🌙",
@@ -51,13 +93,14 @@ def make_layout(run_options: list[dict]) -> html.Div:
                         n_clicks=0,
                         style={
                             "position": "absolute",
-                            "right": "0",
+                            "right": "16px",
                             "fontSize": "24px",
                             "background": "none",
-                            "border": "1px solid #ccc",
+                            "border": "1px solid rgba(255,255,255,0.3)",
                             "borderRadius": "6px",
                             "cursor": "pointer",
                             "padding": "4px 10px",
+                            "color": "#ffffff",
                         },
                     ),
                 ],

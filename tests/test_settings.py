@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tb_monitor.settings import Settings, load_settings
+from tb_monitor.settings import Settings, load_settings, set_settings
 
 
 class TestLoadSettings:
@@ -49,6 +49,22 @@ class TestLoadSettings:
         assert s.host == "127.0.0.1"
         assert s.port == 8050  # default preserved
 
+    def test_enabled_components_loaded(self, tmp_path: Path) -> None:
+        cfg = tmp_path / "config.toml"
+        cfg.write_text('[components]\nenabled = ["overview", "sipm"]\n')
+        s = load_settings(cfg)
+        assert s.enabled_components == ("overview", "sipm")
+
+    def test_enabled_components_default_empty(self) -> None:
+        s = load_settings(None)
+        assert s.enabled_components == ()
+
+    def test_unknown_component_raises(self, tmp_path: Path) -> None:
+        cfg = tmp_path / "config.toml"
+        cfg.write_text('[components]\nenabled = ["overview", "bogus"]\n')
+        with pytest.raises(ValueError, match="Unknown component"):
+            load_settings(cfg)
+
 
 class TestSettingsReplace:
     """Tests for Settings.replace()."""
@@ -64,3 +80,35 @@ class TestSettingsReplace:
         s2 = s.replace(port=6000)
         assert s2.host == "myhost"
         assert s2.port == 6000
+
+
+class TestGetComponents:
+    """Tests for get_components() filtering."""
+
+    def test_default_returns_all(self) -> None:
+        from tb_monitor.components import _ALL_COMPONENTS, get_components
+
+        set_settings(Settings())
+        result = get_components()
+        assert len(result) == len(_ALL_COMPONENTS)
+
+    def test_filter_by_name(self) -> None:
+        from tb_monitor.components import get_components
+
+        set_settings(Settings(enabled_components=("overview", "sipm")))
+        result = get_components()
+        assert [c.name for c in result] == ["overview", "sipm"]
+
+    def test_preserves_configured_order(self) -> None:
+        from tb_monitor.components import get_components
+
+        set_settings(Settings(enabled_components=("sipm", "overview")))
+        result = get_components()
+        assert [c.name for c in result] == ["sipm", "overview"]
+
+    def test_empty_tuple_returns_all(self) -> None:
+        from tb_monitor.components import _ALL_COMPONENTS, get_components
+
+        set_settings(Settings(enabled_components=()))
+        result = get_components()
+        assert len(result) == len(_ALL_COMPONENTS)
