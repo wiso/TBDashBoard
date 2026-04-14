@@ -337,8 +337,8 @@ class TestSiPMComponent:
         lg = rng.uniform(50, 100, size=(100, n_ch))
         # Force channel 0 HG above 3800 for 30 events
         hg[:30, 0] = 3900.0
-        # Force channel 1 HG above 4096 for 10 events
-        hg[:10, 1] = 4096.0
+        # Force channel 1 HG above 4000 for 10 events
+        hg[:10, 1] = 4000.0
 
         state = comp.create_state("")
         comp.fill_batch(state, "SiPM_rawTree_aligned", ak.Array({"SiPM_HG": hg, "SiPM_LG": lg}))
@@ -346,18 +346,18 @@ class TestSiPMComponent:
 
         thresholds = result.sat_thresholds
         assert 3800 in thresholds
-        assert 4096 in thresholds
+        assert 4000 in thresholds
         assert result.sat_frac_hg.shape == (len(thresholds), n_ch)
         assert result.sat_frac_lg.shape == (len(thresholds), n_ch)
 
-        # Check ch 0: 30/100 events >= 3800
+        # Check ch 0: 30/100 events >= 3800, also >= 3000-3600
         idx_3800 = list(thresholds).index(3800)
         assert result.sat_frac_hg[idx_3800, 0] == pytest.approx(0.3)
-        # ch 0 has 30 events >= 3900 but < 4096 → 0 events >= 4096
-        idx_4096 = list(thresholds).index(4096)
-        assert result.sat_frac_hg[idx_4096, 0] == pytest.approx(0.0)
-        # ch 1: 10 events == 4096 → >= 4096
-        assert result.sat_frac_hg[idx_4096, 1] == pytest.approx(0.1)
+        # ch 0 has 30 events at 3900 → 30/100 >= 3800, but < 4000
+        idx_4000 = list(thresholds).index(4000)
+        assert result.sat_frac_hg[idx_4000, 0] == pytest.approx(0.0)
+        # ch 1: 10 events == 4000 → >= 4000
+        assert result.sat_frac_hg[idx_4000, 1] == pytest.approx(0.1)
         # ch 2 should have 0 saturation at 3800 (values 100-200)
         assert result.sat_frac_hg[idx_3800, 2] == pytest.approx(0.0)
 

@@ -81,7 +81,7 @@ class Settings:
     event_rate_bins: int = 200
 
     # ── SiPM saturation ────────────────────────────────────────────
-    sipm_saturation_thresholds: tuple[int, ...] = (3000, 3200, 3400, 3600, 3800, 4000, 4096)
+    sipm_saturation_thresholds: tuple[int, ...] = (3000, 3200, 3400, 3600, 3800, 4000)
 
     # ── component selection (empty = all) ───────────────────────────
     enabled_components: tuple[str, ...] = ()

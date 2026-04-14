@@ -319,8 +319,18 @@ class SiPMComponent(Component):
             )
             return fig
 
+        # Severity palette: low thresholds → cool/ok, high → warm/bad.
+        _SAT_COLORS = {
+            3000: "#2196F3",  # blue — fine
+            3200: "#4CAF50",  # green — fine
+            3400: "#8BC34A",  # light green — ok
+            3600: "#FF9800",  # orange — caution
+            3800: "#F44336",  # red — bad
+            4000: "#B71C1C",  # dark red — very bad
+        }
+
         def _saturation_fig(sat_frac, thresholds, template, title):
-            """Step plot with one trace per threshold."""
+            """Step plot with one trace per threshold, colored by severity."""
             channels = np.arange(sat_frac.shape[1])
             fig = go.Figure()
             for i, thr in enumerate(thresholds):
@@ -331,6 +341,7 @@ class SiPMComponent(Component):
                         mode="lines",
                         line_shape="hv",
                         name=f"≥ {thr}",
+                        line=dict(color=_SAT_COLORS.get(thr)),
                     )
                 )
             fig.update_layout(
