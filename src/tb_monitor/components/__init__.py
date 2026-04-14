@@ -10,12 +10,14 @@ from tb_monitor.components.cherenkov_counter import CherenkovCounterComponent
 from tb_monitor.components.muon import MuonComponent
 from tb_monitor.components.overview import OverviewComponent
 from tb_monitor.components.sipm import SiPMComponent
+from tb_monitor.components.veto import VetoComponent
 
 COMPONENTS: list[Component] = [
     OverviewComponent(),
     ADCComponent(),
     AuxComponent(),
     MuonComponent(),
+    VetoComponent(),
     CherenkovCounterComponent(),
     SiPMComponent(),
 ]

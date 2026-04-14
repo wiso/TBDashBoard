@@ -25,6 +25,7 @@ from tb_monitor.components.overview import (
     OverviewState,
 )
 from tb_monitor.components.sipm import SiPMComponent, SiPMResults, SiPMState
+from tb_monitor.components.veto import VetoComponent, VetoResults
 
 
 # ── Overview Component ──────────────────────────────────────────────
@@ -444,3 +445,92 @@ class TestCherenkovCounterComponent:
         for ch in result.all_events:
             assert result.all_events[ch].sum() == 0
             assert result.pedestal[ch].sum() == 0
+
+
+# ── Veto Component ──────────────────────────────────────────────────
+
+
+class TestVetoComponent:
+    """Tests for VetoComponent batch accumulation and finalize."""
+
+    @pytest.fixture()
+    def comp(self) -> VetoComponent:
+        return VetoComponent()
+
+    def test_name_and_label(self, comp: VetoComponent) -> None:
+        assert comp.name == "veto"
+        assert comp.label == "Veto"
+
+    def test_tree_branches(self, comp: VetoComponent) -> None:
+        tb = comp.tree_branches()
+        assert "CERNSPS2025" in tb
+        assert "ADCs" in tb["CERNSPS2025"]
+        assert "TriggerMask" in tb["CERNSPS2025"]
+
+    def test_fill_and_finalize(
+        self, comp: VetoComponent, cernsps_batch: ak.Array
+    ) -> None:
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        result = comp.finalize(state)
+
+        assert isinstance(result, VetoResults)
+        assert result.all_events.sum() == 100
+        assert result.pedestal.sum() <= result.all_events.sum()
+
+    def test_fills_correct_channel(
+        self, comp: VetoComponent, rng: np.random.Generator
+    ) -> None:
+        """Verify the histogram is filled from the veto channel (63)."""
+        n, n_adc = 50, 224
+        adcs = np.zeros((n, n_adc), dtype=np.int64)
+        adcs[:, 63] = 1000  # only veto channel has nonzero
+        batch = ak.Array({
+            "ADCs": adcs,
+            "TriggerMask": np.ones(n, dtype=np.int64),
+        })
+
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", batch)
+        result = comp.finalize(state)
+
+        values, edges = result.all_events.to_numpy()
+        assert result.all_events.sum() == 50
+        # All entries should be in bin corresponding to ADC=1000
+        idx = np.searchsorted(edges, 1000, side="right") - 1
+        assert values[idx] == 50
+
+    def test_multiple_batches_accumulate(
+        self, comp: VetoComponent, cernsps_batch: ak.Array
+    ) -> None:
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        result = comp.finalize(state)
+        assert result.all_events.sum() == 200
+
+    def test_empty_finalize(self, comp: VetoComponent) -> None:
+        state = comp.create_state("")
+        result = comp.finalize(state)
+        assert result.all_events.sum() == 0
+        assert result.pedestal.sum() == 0
+
+    def test_pedestal_filters_by_trigger_mask(
+        self, comp: VetoComponent, rng: np.random.Generator
+    ) -> None:
+        """Only events with TriggerMask==2 go into the pedestal histogram."""
+        n = 200
+        n_adc = 224
+        masks = np.array([1] * 120 + [2] * 80)
+        rng.shuffle(masks)
+        batch = ak.Array({
+            "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
+            "TriggerMask": masks,
+        })
+
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", batch)
+        result = comp.finalize(state)
+
+        assert result.all_events.sum() == 200
+        assert result.pedestal.sum() == 80
