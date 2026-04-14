@@ -74,8 +74,11 @@ class VetoComponent(Component):
         s = get_settings()
         return html.Div(
             [
-                html.H3("Veto Counter ADC Distribution"),
-                dcc.Graph(id="veto-plot"),
+                html.H3(
+                    "Veto Counter ADC Distribution",
+                    style={"margin": "4px 0", "fontSize": "0.95em"},
+                ),
+                dcc.Graph(id="veto-plot", style={"height": "320px"}),
                 html.Div(
                     [
                         html.Label(
@@ -98,14 +101,14 @@ class VetoComponent(Component):
                             tooltip={"placement": "bottom", "always_visible": True},
                         ),
                     ],
-                    style={"margin": "20px 50px"},
+                    style={"margin": "10px 50px"},
                 ),
                 html.Div(
                     id="veto-fraction-text",
                     style={
                         "textAlign": "center",
-                        "fontSize": "1.2em",
-                        "margin": "10px 0",
+                        "fontSize": "1.1em",
+                        "margin": "4px 0",
                     },
                 ),
             ]
@@ -179,7 +182,8 @@ class VetoComponent(Component):
                 template=template,
                 xaxis_title="ADC",
                 yaxis_title="Events",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
 
             text = f"Fraction above threshold: {fraction:.4f} ({above:.0f} / {total:.0f})"

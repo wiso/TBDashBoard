@@ -121,12 +121,14 @@ class ADCComponent(Component):
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
+        _h = {"margin": "4px 0", "fontSize": "0.95em"}
+        _g = {"height": "320px"}
         return html.Div(
             [
-                html.H3("Calorimeter ADC Mean per Channel (S & C)"),
-                dcc.Graph(id="adc-mean-plot"),
-                html.H3("ADC 2D Map (Channel vs ADC)"),
-                dcc.Graph(id="adc-2d-plot"),
+                html.H3("Calorimeter ADC Mean per Channel (S & C)", style=_h),
+                dcc.Graph(id="adc-mean-plot", style=_g),
+                html.H3("ADC 2D Map (Channel vs ADC)", style=_h),
+                dcc.Graph(id="adc-2d-plot", style=_g),
             ]
         )
 
@@ -174,7 +176,8 @@ class ADCComponent(Component):
                 template=template,
                 xaxis_title="ADC Channel",
                 yaxis_title="Mean ADC",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
             return fig
 
@@ -213,6 +216,7 @@ class ADCComponent(Component):
                 template=template,
                 xaxis_title="ADC Channel",
                 yaxis_title="ADC Value",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
             return fig

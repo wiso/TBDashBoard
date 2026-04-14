@@ -71,10 +71,11 @@ class MuonComponent(Component):
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
+        _h = {"margin": "4px 0", "fontSize": "0.95em"}
         return html.Div(
             [
-                html.H3("Muon Counter ADC Distribution"),
-                dcc.Graph(id="muon-plot"),
+                html.H3("Muon Counter ADC Distribution", style=_h),
+                dcc.Graph(id="muon-plot", style={"height": "320px"}),
             ]
         )
 
@@ -127,6 +128,7 @@ class MuonComponent(Component):
                 template=template,
                 xaxis_title="ADC",
                 yaxis_title="Events",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
             return fig

@@ -97,12 +97,29 @@ class OverviewComponent(Component):
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
+        _h = {"margin": "4px 0", "fontSize": "0.95em"}
+        _g = {"height": "320px"}
         return html.Div(
-            style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
+            style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "10px"},
             children=[
-                html.Div([html.H3("Trigger Mask"), dcc.Graph(id="trigger-mask-plot")]),
-                html.Div([html.H3("Event Rate vs Time"), dcc.Graph(id="event-rate-plot")]),
-                html.Div([html.H3("Events per Spill"), dcc.Graph(id="events-per-spill-plot")]),
+                html.Div(
+                    [
+                        html.H3("Trigger Mask", style=_h),
+                        dcc.Graph(id="trigger-mask-plot", style=_g),
+                    ]
+                ),
+                html.Div(
+                    [
+                        html.H3("Event Rate vs Time", style=_h),
+                        dcc.Graph(id="event-rate-plot", style=_g),
+                    ]
+                ),
+                html.Div(
+                    [
+                        html.H3("Events per Spill", style=_h),
+                        dcc.Graph(id="events-per-spill-plot", style=_g),
+                    ]
+                ),
             ],
         )
 
@@ -138,7 +155,8 @@ class OverviewComponent(Component):
                 template=template,
                 xaxis_title="Trigger Mask",
                 yaxis_title="Events",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
             return fig
 
@@ -163,7 +181,8 @@ class OverviewComponent(Component):
                 template=template,
                 xaxis_title="Event Time",
                 yaxis_title="Events / bin",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
             return fig
 
@@ -188,6 +207,7 @@ class OverviewComponent(Component):
                 template=template,
                 xaxis_title="Spill Number",
                 yaxis_title="Events",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
             return fig

@@ -110,8 +110,8 @@ def make_layout(run_options: list[dict]) -> html.Div:
                 style={
                     "display": "flex",
                     "alignItems": "center",
-                    "gap": "12px",
-                    "marginBottom": "20px",
+                    "gap": "10px",
+                    "marginBottom": "10px",
                 },
                 children=[
                     html.Label("Run:", style={"fontWeight": "bold"}),
@@ -153,21 +153,21 @@ def make_layout(run_options: list[dict]) -> html.Div:
             # Progress bar — shown during file processing
             html.Div(
                 id="progress-container",
-                style={"display": "none", "marginBottom": "12px"},
+                style={"display": "none", "marginBottom": "6px"},
                 children=[
                     html.Div(
                         style={
                             "display": "flex",
                             "alignItems": "center",
-                            "gap": "12px",
+                            "gap": "10px",
                         },
                         children=[
                             html.Div(
                                 style={
                                     "flex": "1",
-                                    "height": "20px",
+                                    "height": "4px",
                                     "backgroundColor": "#e9ecef",
-                                    "borderRadius": "4px",
+                                    "borderRadius": "2px",
                                     "overflow": "hidden",
                                 },
                                 children=[
@@ -177,7 +177,7 @@ def make_layout(run_options: list[dict]) -> html.Div:
                                             "width": "0%",
                                             "height": "100%",
                                             "backgroundColor": "#636EFA",
-                                            "borderRadius": "4px",
+                                            "borderRadius": "2px",
                                             "transition": "width 0.3s ease",
                                         },
                                     ),
@@ -185,13 +185,13 @@ def make_layout(run_options: list[dict]) -> html.Div:
                             ),
                             html.Span(
                                 id="progress-text",
-                                style={"fontSize": "0.9em", "minWidth": "180px"},
+                                style={"fontSize": "0.8em", "minWidth": "160px", "color": "#666"},
                             ),
                         ],
                     ),
                 ],
             ),
             dcc.Tabs(id="tabs", value=default_tab, children=tabs),
-            html.Div(id="tab-content", style={"marginTop": "20px"}),
+            html.Div(id="tab-content", style={"marginTop": "10px"}),
         ],
     )

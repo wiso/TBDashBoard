@@ -220,57 +220,59 @@ class SiPMComponent(Component):
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
+        _h = {"margin": "4px 0", "fontSize": "0.95em"}
+        _g = {"height": "320px"}
         return html.Div(
             [
                 html.Div(
-                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
+                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "10px"},
                     children=[
                         html.Div(
                             [
-                                html.H3("SiPM High-Gain Mean (ADC ≠ 0)"),
-                                dcc.Graph(id="sipm-hg-mean-plot"),
+                                html.H3("SiPM High-Gain Mean (ADC ≠ 0)", style=_h),
+                                dcc.Graph(id="sipm-hg-mean-plot", style=_g),
                             ]
                         ),
                         html.Div(
                             [
-                                html.H3("SiPM Low-Gain Mean (ADC ≠ 0)"),
-                                dcc.Graph(id="sipm-lg-mean-plot"),
+                                html.H3("SiPM Low-Gain Mean (ADC ≠ 0)", style=_h),
+                                dcc.Graph(id="sipm-lg-mean-plot", style=_g),
                             ]
                         ),
                     ],
                 ),
-                html.H3("SiPM Zero-ADC Fraction per Channel (HG)"),
-                dcc.Graph(id="sipm-zero-fraction-plot"),
+                html.H3("SiPM Zero-ADC Fraction per Channel (HG)", style=_h),
+                dcc.Graph(id="sipm-zero-fraction-plot", style=_g),
                 html.Div(
-                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
+                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "10px"},
                     children=[
                         html.Div(
                             [
-                                html.H3("SiPM HG Saturation Fraction"),
-                                dcc.Graph(id="sipm-sat-hg-plot"),
+                                html.H3("SiPM HG Saturation Fraction", style=_h),
+                                dcc.Graph(id="sipm-sat-hg-plot", style=_g),
                             ]
                         ),
                         html.Div(
                             [
-                                html.H3("SiPM LG Saturation Fraction"),
-                                dcc.Graph(id="sipm-sat-lg-plot"),
+                                html.H3("SiPM LG Saturation Fraction", style=_h),
+                                dcc.Graph(id="sipm-sat-lg-plot", style=_g),
                             ]
                         ),
                     ],
                 ),
                 html.Div(
-                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
+                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "10px"},
                     children=[
                         html.Div(
                             [
-                                html.H3("Event Saturation Fraction (HG)"),
-                                dcc.Graph(id="sipm-evt-sat-hg-plot"),
+                                html.H3("Event Saturation Fraction (HG)", style=_h),
+                                dcc.Graph(id="sipm-evt-sat-hg-plot", style=_g),
                             ]
                         ),
                         html.Div(
                             [
-                                html.H3("Event Saturation Fraction (LG)"),
-                                dcc.Graph(id="sipm-evt-sat-lg-plot"),
+                                html.H3("Event Saturation Fraction (LG)", style=_h),
+                                dcc.Graph(id="sipm-evt-sat-lg-plot", style=_g),
                             ]
                         ),
                     ],
@@ -302,7 +304,8 @@ class SiPMComponent(Component):
                 template=template,
                 xaxis_title="SiPM Channel",
                 yaxis_title=ylabel,
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
                 bargap=0,
             )
             return fig
@@ -364,7 +367,8 @@ class SiPMComponent(Component):
                 template=template,
                 xaxis_title="SiPM Channel",
                 yaxis_title="Fraction (ADC = 0)",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
             )
             return fig
 
@@ -397,7 +401,8 @@ class SiPMComponent(Component):
                 template=template,
                 xaxis_title="SiPM Channel",
                 yaxis_title="Fraction of nonzero events",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
                 legend=dict(title="Threshold"),
             )
             return fig
@@ -451,7 +456,8 @@ class SiPMComponent(Component):
                 xaxis_title="ADC Threshold",
                 yaxis_title="Fraction of active events",
                 yaxis=dict(range=[0, max(max(fractions) * 1.15, 0.01)] if fractions else None),
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
                 bargap=0.3,
             )
             return fig

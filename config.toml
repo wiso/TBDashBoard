@@ -7,7 +7,7 @@ host = "0.0.0.0"
 port = 8050
 
 [processing]
-step_size = 50_000                # Events per batch when iterating TTrees
+step_size = 10_000                # Events per batch when iterating TTrees
 run_file_pattern = 'run(\d+)\.root$'
 
 # Active dashboard tabs.  Comment out or remove to show all.

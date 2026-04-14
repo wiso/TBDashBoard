@@ -86,6 +86,8 @@ class CherenkovCounterComponent(Component):
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
+        _h = {"margin": "4px 0", "fontSize": "0.95em"}
+        _g = {"height": "320px"}
         channels = _cher_channels()
         plots = []
         for ch in sorted(channels):
@@ -93,13 +95,17 @@ class CherenkovCounterComponent(Component):
             plots.append(
                 html.Div(
                     [
-                        html.H3(f"{label} (ch {ch}) ADC Distribution"),
-                        dcc.Graph(id=f"cher-counter-{ch}-plot"),
+                        html.H3(f"{label} (ch {ch}) ADC Distribution", style=_h),
+                        dcc.Graph(id=f"cher-counter-{ch}-plot", style=_g),
                     ]
                 )
             )
         return html.Div(
-            style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
+            style={
+                "display": "grid",
+                "gridTemplateColumns": "repeat(3, 1fr)",
+                "gap": "10px",
+            },
             children=plots,
         )
 
@@ -157,6 +163,14 @@ class CherenkovCounterComponent(Component):
                 template=template,
                 xaxis_title="ADC",
                 yaxis_title="Events",
-                margin=dict(l=50, r=30, t=30, b=50),
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="left",
+                    x=0,
+                ),
             )
             return fig
