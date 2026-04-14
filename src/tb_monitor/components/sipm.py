@@ -31,6 +31,11 @@ class SiPMState:
     sat_lg: hist.Hist  # Saturation counts per (threshold, channel) — LG
     nonzero_hg: np.ndarray  # Number of nonzero events per channel — HG
     nonzero_lg: np.ndarray  # Number of nonzero events per channel — LG
+    # Event-level saturation: how many active events have ≥1 ch above threshold
+    evt_sat_hg: dict[int, int]  # threshold → count of events with any ch ≥ thr
+    evt_sat_lg: dict[int, int]
+    evt_active_hg: int  # events with ≥1 nonzero HG channel
+    evt_active_lg: int  # events with ≥1 nonzero LG channel
 
 
 @dataclass(frozen=True)
@@ -47,6 +52,8 @@ class SiPMResults:
     sat_frac_hg: np.ndarray  # shape (n_thresholds, n_ch)
     sat_frac_lg: np.ndarray  # shape (n_thresholds, n_ch)
     sat_thresholds: tuple[int, ...]
+    evt_sat_frac_hg: dict[int, float]  # threshold → fraction of active events
+    evt_sat_frac_lg: dict[int, float]
 
 
 def _make_profile(n_ch: int) -> hist.Hist:
@@ -103,6 +110,10 @@ class SiPMComponent(Component):
             sat_lg=_make_saturation_hist(n_ch, thresholds),
             nonzero_hg=np.zeros(n_ch, dtype=np.int64),
             nonzero_lg=np.zeros(n_ch, dtype=np.int64),
+            evt_sat_hg={t: 0 for t in thresholds},
+            evt_sat_lg={t: 0 for t in thresholds},
+            evt_active_hg=0,
+            evt_active_lg=0,
         )
 
     def fill_batch(self, state: SiPMState, tree_name: str, batch: ak.Array) -> None:
@@ -126,13 +137,22 @@ class SiPMComponent(Component):
             state.nonzero_lg += lg_mask.sum(axis=0)
 
         # Saturation: for each threshold, fill channels where ADC >= threshold
+        # Also count event-level saturation (any channel above threshold)
+        hg_active = hg_mask.any(axis=1)  # shape (n_events,)
+        lg_active = lg_mask.any(axis=1)
+        state.evt_active_hg += int(hg_active.sum())
+        state.evt_active_lg += int(lg_active.sum())
+
         for thr in state.sat_hg.axes["threshold"]:
             hg_sat = hg >= thr
             if hg_sat.any():
                 state.sat_hg.fill(threshold=thr, ch=channels[hg_sat])
+                # Event has saturation if any channel >= thr AND event is active
+                state.evt_sat_hg[thr] += int((hg_sat & hg_active[:, None]).any(axis=1).sum())
             lg_sat = lg >= thr
             if lg_sat.any():
                 state.sat_lg.fill(threshold=thr, ch=channels[lg_sat])
+                state.evt_sat_lg[thr] += int((lg_sat & lg_active[:, None]).any(axis=1).sum())
 
     def finalize(self, state: SiPMState) -> SiPMResults:
         hg_mean, hg_std, hg_n = _extract_mean_std(state.profile_hg)
@@ -161,6 +181,16 @@ class SiPMComponent(Component):
                 0.0,
             )
 
+        # Event-level saturation fractions
+        evt_sat_frac_hg = {
+            t: (c / state.evt_active_hg if state.evt_active_hg > 0 else 0.0)
+            for t, c in state.evt_sat_hg.items()
+        }
+        evt_sat_frac_lg = {
+            t: (c / state.evt_active_lg if state.evt_active_lg > 0 else 0.0)
+            for t, c in state.evt_sat_lg.items()
+        }
+
         logger.info(
             "SiPM finalize: %d channels, %d total events, "
             "HG mean range [%.2f, %.2f], LG mean range [%.2f, %.2f]",
@@ -183,6 +213,8 @@ class SiPMComponent(Component):
             sat_frac_hg=sat_frac_hg,
             sat_frac_lg=sat_frac_lg,
             sat_thresholds=thresholds,
+            evt_sat_frac_hg=evt_sat_frac_hg,
+            evt_sat_frac_lg=evt_sat_frac_lg,
         )
 
     # ── frontend ────────────────────────────────────────────────────
@@ -222,6 +254,23 @@ class SiPMComponent(Component):
                             [
                                 html.H3("SiPM LG Saturation Fraction"),
                                 dcc.Graph(id="sipm-sat-lg-plot"),
+                            ]
+                        ),
+                    ],
+                ),
+                html.Div(
+                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
+                    children=[
+                        html.Div(
+                            [
+                                html.H3("Event Saturation Fraction (HG)"),
+                                dcc.Graph(id="sipm-evt-sat-hg-plot"),
+                            ]
+                        ),
+                        html.Div(
+                            [
+                                html.H3("Event Saturation Fraction (LG)"),
+                                dcc.Graph(id="sipm-evt-sat-lg-plot"),
                             ]
                         ),
                     ],
@@ -382,3 +431,57 @@ class SiPMComponent(Component):
                 return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             return _saturation_fig(r.sat_frac_lg, r.sat_thresholds, template, "LG")
+
+        def _evt_sat_bar(evt_sat_frac, template):
+            """Bar chart: fraction of active events with ≥1 saturated channel."""
+            thresholds = sorted(evt_sat_frac.keys())
+            fractions = [evt_sat_frac[t] for t in thresholds]
+            colors = [_SAT_COLORS.get(t, "#636EFA") for t in thresholds]
+            fig = go.Figure(
+                go.Bar(
+                    x=[f"≥ {t}" for t in thresholds],
+                    y=fractions,
+                    marker=dict(color=colors),
+                    text=[f"{f:.1%}" for f in fractions],
+                    textposition="outside",
+                )
+            )
+            fig.update_layout(
+                template=template,
+                xaxis_title="ADC Threshold",
+                yaxis_title="Fraction of active events",
+                yaxis=dict(range=[0, max(max(fractions) * 1.15, 0.01)] if fractions else None),
+                margin=dict(l=50, r=30, t=30, b=50),
+                bargap=0.3,
+            )
+            return fig
+
+        @app.callback(
+            Output("sipm-evt-sat-hg-plot", "figure"),
+            Input("run-data-loaded", "data"),
+            Input("theme-store", "data"),
+            Input("batch-counter", "data"),
+        )
+        def update_sipm_evt_sat_hg(path: str | None, theme: str, _batch: int) -> Any:
+            if not path:
+                return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
+            return _evt_sat_bar(r.evt_sat_frac_hg, template)
+
+        @app.callback(
+            Output("sipm-evt-sat-lg-plot", "figure"),
+            Input("run-data-loaded", "data"),
+            Input("theme-store", "data"),
+            Input("batch-counter", "data"),
+        )
+        def update_sipm_evt_sat_lg(path: str | None, theme: str, _batch: int) -> Any:
+            if not path:
+                return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
+            return _evt_sat_bar(r.evt_sat_frac_lg, template)

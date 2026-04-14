@@ -361,6 +361,33 @@ class TestSiPMComponent:
         # ch 2 should have 0 saturation at 3800 (values 100-200)
         assert result.sat_frac_hg[idx_3800, 2] == pytest.approx(0.0)
 
+    def test_event_saturation_fraction(self, comp: SiPMComponent, rng: np.random.Generator) -> None:
+        n_ch = 1024
+        # All events have at least one nonzero channel (values 100-200)
+        hg = rng.uniform(100, 200, size=(100, n_ch))
+        lg = rng.uniform(50, 100, size=(100, n_ch))
+        # 15 events have at least one ch above 3800 (set ch 5 for those)
+        hg[:15, 5] = 3900.0
+        # 5 of those also above 4000 (set ch 10 for those)
+        hg[:5, 10] = 4050.0
+        # 10 events completely zero in HG → not "active"
+        hg[90:] = 0.0
+
+        state = comp.create_state("")
+        comp.fill_batch(state, "SiPM_rawTree_aligned", ak.Array({"SiPM_HG": hg, "SiPM_LG": lg}))
+        result = comp.finalize(state)
+
+        # 90 active HG events (events 0-89 have nonzero channels)
+        # 15 events (0-14) have ch5 >= 3800 → 15/90
+        assert result.evt_sat_frac_hg[3800] == pytest.approx(15 / 90)
+        # 5 events (0-4) have ch10 >= 4000 → 5/90
+        assert result.evt_sat_frac_hg[4000] == pytest.approx(5 / 90)
+        # All 90 active events have channels >= 100 which is >= 3000? No, 100 < 3000
+        # So 3000 threshold: only the 15 events with 3900 + 5 with 4050 = 15 unique events
+        assert result.evt_sat_frac_hg[3000] == pytest.approx(15 / 90)
+        # LG: all 100 events are active (values 50-100, never zero), none >= 3000
+        assert result.evt_sat_frac_lg[3000] == pytest.approx(0.0)
+
 
 # ── Muon Component ──────────────────────────────────────────────────
 
