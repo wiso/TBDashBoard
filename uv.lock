@@ -1075,6 +1075,7 @@ dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "plotly" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "uproot" },
 ]
 
@@ -1092,6 +1093,7 @@ requires-dist = [
     { name = "hist", specifier = ">=2.7" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "plotly", specifier = ">=5.22" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
     { name = "uproot", specifier = ">=5.3" },
 ]
 
