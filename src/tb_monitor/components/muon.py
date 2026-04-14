@@ -18,10 +18,12 @@ from tb_monitor.themes import THEMES
 
 @dataclass
 class MuonState:
-    """Mutable accumulators for muon counter histograms."""
+    """Mutable accumulators for muon and tail catcher histograms."""
 
     all_events: hist.Hist
     pedestal: hist.Hist
+    tail_all: hist.Hist
+    tail_pedestal: hist.Hist
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,8 @@ class MuonResults:
 
     all_events: hist.Hist
     pedestal: hist.Hist
+    tail_all: hist.Hist
+    tail_pedestal: hist.Hist
 
 
 class MuonComponent(Component):
@@ -55,18 +59,34 @@ class MuonComponent(Component):
             pedestal=hist.Hist(
                 hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"),
             ),
+            tail_all=hist.Hist(
+                hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"),
+            ),
+            tail_pedestal=hist.Hist(
+                hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"),
+            ),
         )
 
     def fill_batch(self, state: MuonState, tree_name: str, batch: ak.Array) -> None:
         s = get_settings()
-        adc = np.asarray(batch["ADCs"], dtype=np.int64)[:, s.muon_channel]
+        adcs = np.asarray(batch["ADCs"], dtype=np.int64)
         mask_val = np.asarray(batch["TriggerMask"])
 
-        state.all_events.fill(adc=adc)
-        state.pedestal.fill(adc=adc[mask_val == s.pedestal_trigger_mask])
+        muon_adc = adcs[:, s.muon_channel]
+        tail_adc = adcs[:, 160]  # Tail Catcher channel
+
+        state.all_events.fill(adc=muon_adc)
+        state.pedestal.fill(adc=muon_adc[mask_val == s.pedestal_trigger_mask])
+        state.tail_all.fill(adc=tail_adc)
+        state.tail_pedestal.fill(adc=tail_adc[mask_val == s.pedestal_trigger_mask])
 
     def finalize(self, state: MuonState) -> MuonResults:
-        return MuonResults(all_events=state.all_events, pedestal=state.pedestal)
+        return MuonResults(
+            all_events=state.all_events,
+            pedestal=state.pedestal,
+            tail_all=state.tail_all,
+            tail_pedestal=state.tail_pedestal,
+        )
 
     # ── frontend ────────────────────────────────────────────────────
 
@@ -74,8 +94,14 @@ class MuonComponent(Component):
         _h = {"margin": "4px 0", "fontSize": "0.95em"}
         return html.Div(
             [
-                html.H3("Muon Counter ADC Distribution", style=_h),
-                dcc.Graph(id="muon-plot", style={"height": "320px"}),
+                html.Div([
+                    html.H3("Muon Counter ADC Distribution", style=_h),
+                    dcc.Graph(id="muon-plot", style={"height": "320px"}),
+                ]),
+                html.Div([
+                    html.H3("Tail Catcher ADC Distribution", style=_h),
+                    dcc.Graph(id="tail-catcher-plot", style={"height": "320px"}),
+                ]),
             ]
         )
 
@@ -99,6 +125,59 @@ class MuonComponent(Component):
             centers = 0.5 * (edges[:-1] + edges[1:])
 
             h_ped = r.pedestal
+            v_ped, _ = h_ped.to_numpy()
+
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=v_all,
+                    mode="lines",
+                    line_shape="hvh",
+                    name="All events",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=v_ped,
+                    mode="lines",
+                    line_shape="hvh",
+                    name="Pedestal (TriggerMask=2)",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
+            fig.update_layout(
+                template=template,
+                xaxis_title="ADC",
+                yaxis_title="Events",
+                margin=dict(l=50, r=20, t=20, b=40),
+                height=310,
+            )
+            return fig
+
+        @app.callback(
+            Output("tail-catcher-plot", "figure"),
+            Input("run-data-loaded", "data"),
+            Input("theme-store", "data"),
+            Input("batch-counter", "data"),
+        )
+        def update_tail_catcher(path: str | None, theme: str, _batch: int) -> Any:
+            if not path:
+                return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
+
+            h_all = r.tail_all
+            v_all, edges = h_all.to_numpy()
+            centers = 0.5 * (edges[:-1] + edges[1:])
+
+            h_ped = r.tail_pedestal
             v_ped, _ = h_ped.to_numpy()
 
             fig = go.Figure()
