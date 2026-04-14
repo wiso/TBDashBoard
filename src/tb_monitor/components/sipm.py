@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import awkward as ak
+import hist
 import numpy as np
 import plotly.graph_objects as go
 from dash import Input, Output, dcc, html, no_update
@@ -17,11 +18,9 @@ from tb_monitor.themes import THEMES
 
 @dataclass
 class SiPMState:
-    """Mutable accumulators for SiPM data."""
+    """Mutable accumulators for SiPM data — uses hist Mean() storage."""
 
-    hg_sum: np.ndarray
-    hg_sum_sq: np.ndarray
-    n_events: int = 0
+    profile_hg: hist.Hist
 
 
 @dataclass(frozen=True)
@@ -49,27 +48,30 @@ class SiPMComponent(Component):
     def create_state(self, path: str) -> SiPMState:
         n_ch = get_settings().n_sipm_channels
         return SiPMState(
-            hg_sum=np.zeros(n_ch, dtype=np.float64),
-            hg_sum_sq=np.zeros(n_ch, dtype=np.float64),
+            profile_hg=hist.Hist(
+                hist.axis.Integer(0, n_ch, name="ch"),
+                storage=hist.storage.Mean(),
+            ),
         )
 
     def fill_batch(self, state: SiPMState, tree_name: str, batch: ak.Array) -> None:
         hg = np.asarray(batch["SiPM_HG"], dtype=np.float64)
-        state.n_events += hg.shape[0]
-        state.hg_sum += hg.sum(axis=0)
-        state.hg_sum_sq += (hg**2).sum(axis=0)
+        n_ch = hg.shape[1]
+        channels = np.arange(n_ch)
+        for ch in channels:
+            state.profile_hg.fill(ch=ch, sample=hg[:, ch])
 
     def finalize(self, state: SiPMState) -> SiPMResults:
-        n = state.n_events
-        n_ch = get_settings().n_sipm_channels
-        if n == 0:
-            return SiPMResults(
-                hg_mean=np.zeros(n_ch), hg_std=np.zeros(n_ch)
-            )
-        mean = state.hg_sum / n
-        var = state.hg_sum_sq / n - mean**2
-        np.clip(var, 0.0, None, out=var)
-        return SiPMResults(hg_mean=mean, hg_std=np.sqrt(var))
+        view = state.profile_hg.view()
+        counts = view.count
+        mean = np.where(counts > 0, view.value, 0.0)
+        # hist Mean() storage stores sample variance (ddof=1).
+        # Convert to population variance (ddof=0) for consistency.
+        sample_var = np.where(counts > 0, view.variance, 0.0)
+        with np.errstate(invalid="ignore"):
+            pop_var = np.where(counts > 1, sample_var * (counts - 1) / counts, 0.0)
+        np.clip(pop_var, 0.0, None, out=pop_var)
+        return SiPMResults(hg_mean=mean, hg_std=np.sqrt(pop_var))
 
     # ── frontend ────────────────────────────────────────────────────
 
