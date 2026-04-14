@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import traceback
+from functools import lru_cache
 from typing import Any
 
 from dash import Dash, Input, Output, no_update
@@ -15,19 +16,16 @@ from tb_monitor.themes import THEMES
 
 logger = logging.getLogger(__name__)
 
-# Module-level cache: replaced atomically when the user selects a run.
-_current_run_path: str | None = None
-_current_results: dict[str, Any] | None = None
 
-
+@lru_cache(maxsize=8)
 def _get_all_results(path: str) -> dict[str, Any]:
-    """Return cached results, reprocessing only if the path changed."""
-    global _current_run_path, _current_results
-    if path != _current_run_path:
-        _current_results = process_run(path, step_size=get_settings().step_size)
-        _current_run_path = path
-    assert _current_results is not None
-    return _current_results
+    """Return results for a run, caching up to 8 recent runs.
+
+    Multiple users requesting different runs get correct results
+    from their own cache entry.
+    """
+    logger.info("Processing run (cache miss): %s", path)
+    return process_run(path, step_size=get_settings().step_size)
 
 
 def register_callbacks(app: Dash) -> None:
