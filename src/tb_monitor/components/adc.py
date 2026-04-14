@@ -125,12 +125,15 @@ class ADCComponent(Component):
             Output("adc-mean-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
+            Input("batch-counter", "data"),
         )
-        def update_adc_mean(path: str | None, theme: str) -> Any:
+        def update_adc_mean(path: str | None, theme: str, _batch: int) -> Any:
             if not path:
                 return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             r = get_results(path)
+            if r is None:
+                return no_update
             chs = r.calo_channels
             means = r.mean[chs]
             stds = r.std[chs]
@@ -160,12 +163,16 @@ class ADCComponent(Component):
             Output("adc-2d-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
+            Input("batch-counter", "data"),
         )
-        def update_adc_2d(path: str | None, theme: str) -> Any:
+        def update_adc_2d(path: str | None, theme: str, _batch: int) -> Any:
             if not path:
                 return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
-            h = get_results(path).adc_2d
+            h = r.adc_2d
             values, xedges, yedges = h.to_numpy()
             # Restrict to calorimeter channels (0-127 excl. specials)
             s_chs = scintillation_channels()

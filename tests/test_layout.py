@@ -33,6 +33,23 @@ class TestMakeLayout:
         assert error_div is not None
         assert error_div.style["display"] == "none"
 
+    def test_progress_bar_present_and_hidden(self) -> None:
+        layout = make_layout([])
+        progress = _find_component(layout, "progress-container")
+        assert progress is not None
+        assert progress.style["display"] == "none"
+        bar = _find_component(layout, "progress-bar")
+        assert bar is not None
+
+    def test_batch_counter_and_interval_present(self) -> None:
+        layout = make_layout([])
+        batch = _find_component(layout, "batch-counter")
+        assert batch is not None
+        assert batch.data == 0
+        interval = _find_component(layout, "progress-interval")
+        assert interval is not None
+        assert interval.disabled is True
+
 
 def _find_component(component, target_id: str):
     """Recursively search a Dash component tree for a component by id."""

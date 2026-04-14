@@ -116,14 +116,17 @@ class VetoComponent(Component):
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
             Input("veto-threshold", "value"),
+            Input("batch-counter", "data"),
         )
         def update_veto(
-            path: str | None, theme: str, threshold: int
+            path: str | None, theme: str, threshold: int, _batch: int
         ) -> tuple[Any, Any]:
             if not path:
                 return no_update, no_update
-            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             r = get_results(path)
+            if r is None:
+                return no_update, no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
 
             h = r.all_events
             values, edges = h.to_numpy()

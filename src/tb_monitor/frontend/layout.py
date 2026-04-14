@@ -89,6 +89,15 @@ def make_layout(run_options: list[dict]) -> html.Div:
                 ],
             ),
             dcc.Store(id="run-data-loaded", data=None),
+            # Batch counter — incremented after each batch; components
+            # listen to this to re-render with intermediate results.
+            dcc.Store(id="batch-counter", data=0),
+            # Interval timer — enabled during processing, polls for updates.
+            dcc.Interval(
+                id="progress-interval",
+                interval=500,  # ms
+                disabled=True,
+            ),
             # Error banner — hidden by default, shown on processing failures
             html.Div(
                 id="run-error",
@@ -103,14 +112,48 @@ def make_layout(run_options: list[dict]) -> html.Div:
                     "whiteSpace": "pre-wrap",
                 },
             ),
-            dcc.Tabs(id="tabs", value=default_tab, children=tabs),
-            dcc.Loading(
-                id="tab-loading",
-                type="dot",
+            # Progress bar — shown during file processing
+            html.Div(
+                id="progress-container",
+                style={"display": "none", "marginBottom": "12px"},
                 children=[
-                    html.Span(id="loading-trigger", style={"display": "none"}),
-                    html.Div(id="tab-content", style={"marginTop": "20px"}),
+                    html.Div(
+                        style={
+                            "display": "flex",
+                            "alignItems": "center",
+                            "gap": "12px",
+                        },
+                        children=[
+                            html.Div(
+                                style={
+                                    "flex": "1",
+                                    "height": "20px",
+                                    "backgroundColor": "#e9ecef",
+                                    "borderRadius": "4px",
+                                    "overflow": "hidden",
+                                },
+                                children=[
+                                    html.Div(
+                                        id="progress-bar",
+                                        style={
+                                            "width": "0%",
+                                            "height": "100%",
+                                            "backgroundColor": "#636EFA",
+                                            "borderRadius": "4px",
+                                            "transition": "width 0.3s ease",
+                                        },
+                                    ),
+                                ],
+                            ),
+                            html.Span(
+                                id="progress-text",
+                                style={"fontSize": "0.9em", "minWidth": "180px"},
+                            ),
+                        ],
+                    ),
                 ],
             ),
+            dcc.Tabs(id="tabs", value=default_tab, children=tabs),
+            html.Div(id="tab-content", style={"marginTop": "20px"}),
         ],
     )

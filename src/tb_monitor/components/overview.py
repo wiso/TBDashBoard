@@ -108,12 +108,16 @@ class OverviewComponent(Component):
             Output("trigger-mask-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
+            Input("batch-counter", "data"),
         )
-        def update_trigger_mask(path: str | None, theme: str) -> Any:
+        def update_trigger_mask(path: str | None, theme: str, _batch: int) -> Any:
             if not path:
                 return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
-            h = get_results(path).trigger_mask
+            h = r.trigger_mask
             labels = [str(v) for v in h.axes[0]]
             values = h.values()
             total = values.sum()
@@ -137,12 +141,16 @@ class OverviewComponent(Component):
             Output("event-rate-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
+            Input("batch-counter", "data"),
         )
-        def update_event_rate(path: str | None, theme: str) -> Any:
+        def update_event_rate(path: str | None, theme: str, _batch: int) -> Any:
             if not path:
                 return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
-            h = get_results(path).event_rate
+            h = r.event_rate
             values, edges = h.to_numpy()
             centers = 0.5 * (edges[:-1] + edges[1:])
             fig = go.Figure(go.Scatter(x=centers, y=values, mode="lines", line_shape="hv"))
@@ -157,12 +165,16 @@ class OverviewComponent(Component):
             Output("events-per-spill-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
+            Input("batch-counter", "data"),
         )
-        def update_events_per_spill(path: str | None, theme: str) -> Any:
+        def update_events_per_spill(path: str | None, theme: str, _batch: int) -> Any:
             if not path:
                 return no_update
+            r = get_results(path)
+            if r is None:
+                return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
-            h = get_results(path).events_per_spill
+            h = r.events_per_spill
             spills = [str(v) for v in h.axes[0]]
             values = h.values()
             fig = go.Figure(go.Bar(x=spills, y=values))

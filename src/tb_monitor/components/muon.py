@@ -81,12 +81,15 @@ class MuonComponent(Component):
             Output("muon-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
+            Input("batch-counter", "data"),
         )
-        def update_muon(path: str | None, theme: str) -> Any:
+        def update_muon(path: str | None, theme: str, _batch: int) -> Any:
             if not path:
                 return no_update
-            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             r = get_results(path)
+            if r is None:
+                return no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
 
             h_all = r.all_events
             v_all, edges = h_all.to_numpy()

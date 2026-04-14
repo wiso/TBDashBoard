@@ -84,12 +84,15 @@ class SiPMComponent(Component):
             Output("sipm-hg-mean-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
+            Input("batch-counter", "data"),
         )
-        def update_sipm_hg_mean(path: str | None, theme: str) -> Any:
+        def update_sipm_hg_mean(path: str | None, theme: str, _batch: int) -> Any:
             if not path:
                 return no_update
-            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             r = get_results(path)
+            if r is None:
+                return no_update
+            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
             channels = np.arange(len(r.hg_mean))
             fig = go.Figure(go.Scatter(
                 x=channels, y=r.hg_mean,

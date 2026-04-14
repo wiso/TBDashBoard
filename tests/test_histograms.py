@@ -13,7 +13,7 @@ import awkward as ak
 import numpy as np
 import pytest
 
-from tb_monitor.backend.histograms import process_run
+from tb_monitor.backend.histograms import iter_process_run, process_run
 from tb_monitor.components.base import Component
 
 
@@ -168,3 +168,87 @@ class TestProcessRun:
             _, kwargs = mock_iter.call_args
             branches = kwargs.get("branches") or mock_iter.call_args[0][2]
             assert set(branches) == {"EventTime", "TriggerMask"}
+
+
+class TestIterProcessRun:
+    """Tests for the streaming iterator ``iter_process_run``."""
+
+    def test_yields_once_per_batch(
+        self, fake_metadata: dict, cernsps_batches: list[ak.Array]
+    ) -> None:
+        comp = FakeComponent("t", "T", {"CERNSPS2025": ["TriggerMask"]})
+
+        with (
+            patch("tb_monitor.backend.histograms.load_metadata", return_value=fake_metadata),
+            patch("tb_monitor.backend.histograms.iter_tree") as mock_iter,
+            patch("tb_monitor.backend.histograms.tree_num_entries", return_value=80),
+        ):
+            mock_iter.return_value = iter(cernsps_batches)
+            steps = list(iter_process_run("/fake.root", components=[comp]))
+
+        assert len(steps) == 2  # two batches
+
+    def test_progress_increases(
+        self, fake_metadata: dict, cernsps_batches: list[ak.Array]
+    ) -> None:
+        comp = FakeComponent("t", "T", {"CERNSPS2025": ["TriggerMask"]})
+
+        with (
+            patch("tb_monitor.backend.histograms.load_metadata", return_value=fake_metadata),
+            patch("tb_monitor.backend.histograms.iter_tree") as mock_iter,
+            patch("tb_monitor.backend.histograms.tree_num_entries", return_value=80),
+        ):
+            mock_iter.return_value = iter(cernsps_batches)
+            steps = list(iter_process_run("/fake.root", components=[comp]))
+
+        # Progress should strictly increase
+        progresses = [s[0] for s in steps]
+        assert progresses == sorted(progresses)
+        assert progresses[-1] == pytest.approx(1.0)
+
+    def test_entries_accumulate(
+        self, fake_metadata: dict, cernsps_batches: list[ak.Array]
+    ) -> None:
+        comp = FakeComponent("t", "T", {"CERNSPS2025": ["TriggerMask"]})
+
+        with (
+            patch("tb_monitor.backend.histograms.load_metadata", return_value=fake_metadata),
+            patch("tb_monitor.backend.histograms.iter_tree") as mock_iter,
+            patch("tb_monitor.backend.histograms.tree_num_entries", return_value=80),
+        ):
+            mock_iter.return_value = iter(cernsps_batches)
+            steps = list(iter_process_run("/fake.root", components=[comp]))
+
+        entries = [s[1] for s in steps]
+        assert entries == [50, 80]
+
+    def test_intermediate_results_accumulate(
+        self, fake_metadata: dict, cernsps_batches: list[ak.Array]
+    ) -> None:
+        comp = FakeComponent("t", "T", {"CERNSPS2025": ["TriggerMask"]})
+
+        with (
+            patch("tb_monitor.backend.histograms.load_metadata", return_value=fake_metadata),
+            patch("tb_monitor.backend.histograms.iter_tree") as mock_iter,
+            patch("tb_monitor.backend.histograms.tree_num_entries", return_value=80),
+        ):
+            mock_iter.return_value = iter(cernsps_batches)
+            steps = list(iter_process_run("/fake.root", components=[comp]))
+
+        # After first batch: 50 events; after second: 80
+        assert steps[0][2]["t"]["total_events"] == 50
+        assert steps[1][2]["t"]["total_events"] == 80
+
+    def test_empty_tree_yields_once(self, fake_metadata: dict) -> None:
+        comp = FakeComponent("t", "T", {"CERNSPS2025": ["TriggerMask"]})
+
+        with (
+            patch("tb_monitor.backend.histograms.load_metadata", return_value=fake_metadata),
+            patch("tb_monitor.backend.histograms.iter_tree", return_value=iter([])),
+            patch("tb_monitor.backend.histograms.tree_num_entries", return_value=0),
+        ):
+            steps = list(iter_process_run("/fake.root", components=[comp]))
+
+        assert len(steps) == 1
+        assert steps[0][0] == 1.0
+        assert steps[0][1] == 0
