@@ -1,0 +1,52 @@
+# TB2026 Monitor — Configuration
+# Copy this file and adjust for your site.
+
+[server]
+data_dir = ""           # Path to directory containing ROOT run files
+host = "0.0.0.0"
+port = 8050
+
+[processing]
+step_size = 50_000                # Events per batch when iterating TTrees
+run_file_pattern = 'run(\d+)\.root$'
+
+[detector]
+n_adc_channels = 224
+n_sipm_channels = 1024
+adc_lo = 0
+adc_hi = 4096
+
+scintillation_range = [0, 64]     # [lo, hi) channel range for S fibres
+cherenkov_range = [64, 128]       # [lo, hi) channel range for C fibres
+leakage_range = [128, 144]        # [lo, hi) channel range for leakage counters
+
+muon_channel = 161
+pedestal_trigger_mask = 2
+event_rate_bins = 200
+
+# Map ADC channel number → label for special/auxiliary channels.
+# Use quoted integer keys.
+[detector.special_channels]
+"31"  = "PS"
+"63"  = "Veto"
+"128" = "L1"
+"129" = "L2"
+"130" = "L3"
+"131" = "L4"
+"132" = "L5"
+"133" = "L6"
+"134" = "L7"
+"135" = "L8"
+"136" = "L9"
+"137" = "L10"
+"138" = "L11"
+"139" = "L12"
+"140" = "L13"
+"141" = "L14"
+"142" = "L15"
+"143" = "L16"
+"160" = "Tail Catcher"
+"161" = "Muon"
+"162" = "Cher1"
+"163" = "Cher2"
+"164" = "Cher3"

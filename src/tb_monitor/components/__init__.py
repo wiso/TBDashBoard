@@ -6,6 +6,7 @@ To add or remove a component, edit the ``COMPONENTS`` list below.
 from tb_monitor.components.adc import ADCComponent
 from tb_monitor.components.aux import AuxComponent
 from tb_monitor.components.base import Component
+from tb_monitor.components.cherenkov_counter import CherenkovCounterComponent
 from tb_monitor.components.muon import MuonComponent
 from tb_monitor.components.overview import OverviewComponent
 from tb_monitor.components.sipm import SiPMComponent
@@ -15,6 +16,7 @@ COMPONENTS: list[Component] = [
     ADCComponent(),
     AuxComponent(),
     MuonComponent(),
+    CherenkovCounterComponent(),
     SiPMComponent(),
 ]
 """Active monitoring components, in tab order."""

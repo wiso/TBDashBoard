@@ -16,6 +16,7 @@ filling, Dash layout, and callbacks.
    - `name` / `label` — unique ID and tab label.
    - `tree_branches()` — which TTree branches you need.
    - `create_state(path)` — create empty accumulators.
+     Call `get_settings()` here for detector parameters (never at module level).
    - `fill_batch(state, tree_name, batch)` — accumulate one batch.
    - `finalize(state)` — compute final results.
    - `tab_layout()` — return `html.Div(...)` with `dcc.Graph` elements.
@@ -23,8 +24,10 @@ filling, Dash layout, and callbacks.
      to Plotly figures via Dash callbacks.
 3. Register it in `src/tb_monitor/components/__init__.py` by adding an
    instance to the `COMPONENTS` list.
+4. If you need new configurable parameters, add fields to `Settings` in
+   `settings.py` and corresponding entries in `config.toml`.
 
-See `overview.py`, `adc.py`, or `sipm.py` for examples.
+See `overview.py`, `adc.py`, `muon.py`, `cherenkov_counter.py`, or `sipm.py` for examples.
 
 ## To add a plot to an existing component
 

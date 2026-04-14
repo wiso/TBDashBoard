@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import awkward as ak
@@ -11,9 +11,9 @@ import plotly.graph_objects as go
 from dash import Input, Output, dcc, html, no_update
 
 from tb_monitor.backend.channel_map import (
-    BEAM_CHANNELS,
-    LEAKAGE_CHANNELS,
-    SPECIAL_CHANNELS,
+    beam_channels,
+    leakage_channels,
+    special_channels,
 )
 from tb_monitor.components.base import Component
 from tb_monitor.themes import THEMES
@@ -23,18 +23,12 @@ from tb_monitor.themes import THEMES
 class AuxState:
     """Mutable accumulators for auxiliary ADC channels."""
 
-    beam_sum: dict[int, float] = field(default_factory=lambda: {
-        ch: 0.0 for ch in BEAM_CHANNELS
-    })
-    beam_sum_sq: dict[int, float] = field(default_factory=lambda: {
-        ch: 0.0 for ch in BEAM_CHANNELS
-    })
-    leak_sum: np.ndarray = field(
-        default_factory=lambda: np.zeros(len(LEAKAGE_CHANNELS), dtype=np.float64)
-    )
-    leak_sum_sq: np.ndarray = field(
-        default_factory=lambda: np.zeros(len(LEAKAGE_CHANNELS), dtype=np.float64)
-    )
+    beam_chs: list[int]
+    leak_chs: list[int]
+    beam_sum: dict[int, float]
+    beam_sum_sq: dict[int, float]
+    leak_sum: np.ndarray
+    leak_sum_sq: np.ndarray
     n_events: int = 0
 
 
@@ -52,9 +46,6 @@ class AuxResults:
 class AuxComponent(Component):
     """Beam counters (muon, PS, veto, Cherenkov, tail catcher) and leakage."""
 
-    _beam_chs = sorted(BEAM_CHANNELS.keys())
-    _leak_chs = LEAKAGE_CHANNELS
-
     @property
     def name(self) -> str:
         return "aux"
@@ -67,7 +58,16 @@ class AuxComponent(Component):
         return {"CERNSPS2025": ["ADCs"]}
 
     def create_state(self, path: str) -> AuxState:
-        return AuxState()
+        bc = beam_channels()
+        lc = leakage_channels()
+        return AuxState(
+            beam_chs=sorted(bc.keys()),
+            leak_chs=lc,
+            beam_sum={ch: 0.0 for ch in bc},
+            beam_sum_sq={ch: 0.0 for ch in bc},
+            leak_sum=np.zeros(len(lc), dtype=np.float64),
+            leak_sum_sq=np.zeros(len(lc), dtype=np.float64),
+        )
 
     def fill_batch(self, state: AuxState, tree_name: str, batch: ak.Array) -> None:
         adcs = np.asarray(batch["ADCs"], dtype=np.float64)
@@ -75,13 +75,13 @@ class AuxComponent(Component):
         state.n_events += n
 
         # Beam counters
-        for ch in self._beam_chs:
+        for ch in state.beam_chs:
             col = adcs[:, ch]
             state.beam_sum[ch] += col.sum()
             state.beam_sum_sq[ch] += (col ** 2).sum()
 
         # Leakage counters
-        leak = adcs[:, self._leak_chs]
+        leak = adcs[:, state.leak_chs]
         state.leak_sum += leak.sum(axis=0)
         state.leak_sum_sq += (leak ** 2).sum(axis=0)
 
@@ -89,9 +89,10 @@ class AuxComponent(Component):
         n = state.n_events
         beam_mean: dict[str, float] = {}
         beam_std: dict[str, float] = {}
+        bc = beam_channels()
 
-        for ch in self._beam_chs:
-            label = BEAM_CHANNELS[ch]
+        for ch in state.beam_chs:
+            label = bc[ch]
             if n == 0:
                 beam_mean[label] = 0.0
                 beam_std[label] = 0.0
@@ -102,15 +103,16 @@ class AuxComponent(Component):
                 beam_std[label] = var ** 0.5
 
         if n == 0:
-            leak_mean = np.zeros(len(self._leak_chs))
-            leak_std = np.zeros(len(self._leak_chs))
+            leak_mean = np.zeros(len(state.leak_chs))
+            leak_std = np.zeros(len(state.leak_chs))
         else:
             leak_mean = state.leak_sum / n
             leak_var = state.leak_sum_sq / n - leak_mean ** 2
             np.clip(leak_var, 0.0, None, out=leak_var)
             leak_std = np.sqrt(leak_var)
 
-        leak_labels = [SPECIAL_CHANNELS[ch] for ch in self._leak_chs]
+        sc = special_channels()
+        leak_labels = [sc[ch] for ch in state.leak_chs]
 
         return AuxResults(
             beam_mean=beam_mean,

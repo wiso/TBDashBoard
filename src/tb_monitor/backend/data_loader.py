@@ -7,11 +7,14 @@ is loaded in full.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from typing import Any
 
 import awkward as ak
 import uproot
+
+logger = logging.getLogger(__name__)
 
 
 def load_metadata(path: str) -> dict[str, Any]:
@@ -33,6 +36,7 @@ def load_metadata(path: str) -> dict[str, Any]:
     for branch_name in meta_tree.keys():
         val = meta_tree[branch_name].array()
         metadata[branch_name] = val[0] if len(val) > 0 else None
+    logger.info("Loaded metadata from %s: run %s", path, metadata.get("runNumber", "?"))
     return metadata
 
 
@@ -83,4 +87,6 @@ def tree_num_entries(path: str, tree_name: str) -> int:
         Number of entries.
     """
     f = uproot.open(path)
-    return f[tree_name].num_entries
+    n = f[tree_name].num_entries
+    logger.debug("Tree %s in %s has %d entries", tree_name, path, n)
+    return n

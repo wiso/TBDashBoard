@@ -89,6 +89,13 @@ def make_layout(run_options: list[dict]) -> html.Div:
             ),
             dcc.Store(id="run-data-loaded", data=None),
             dcc.Tabs(id="tabs", value=default_tab, children=tabs),
-            html.Div(id="tab-content", style={"marginTop": "20px"}),
+            dcc.Loading(
+                id="tab-loading",
+                type="dot",
+                children=[
+                    html.Span(id="loading-trigger", style={"display": "none"}),
+                    html.Div(id="tab-content", style={"marginTop": "20px"}),
+                ],
+            ),
         ],
     )

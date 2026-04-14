@@ -13,6 +13,7 @@ from dash import Input, Output, dcc, html, no_update
 
 from tb_monitor.backend.data_loader import iter_tree
 from tb_monitor.components.base import Component
+from tb_monitor.settings import get_settings
 from tb_monitor.themes import THEMES
 
 
@@ -65,7 +66,10 @@ class OverviewComponent(Component):
                 hist.axis.IntCategory([], name="mask", label="Trigger Mask", growth=True),
             ),
             event_rate=hist.Hist(
-                hist.axis.Regular(200, time_min, time_max, name="time", label="Event Time"),
+                hist.axis.Regular(
+                    get_settings().event_rate_bins, time_min, time_max,
+                    name="time", label="Event Time",
+                ),
             ),
             events_per_spill=hist.Hist(
                 hist.axis.IntCategory([], name="spill", label="Spill Number", growth=True),

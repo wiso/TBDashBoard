@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import awkward as ak
@@ -11,21 +11,16 @@ import plotly.graph_objects as go
 from dash import Input, Output, dcc, html, no_update
 
 from tb_monitor.components.base import Component
+from tb_monitor.settings import get_settings
 from tb_monitor.themes import THEMES
-
-_N_CHANNELS = 1024
 
 
 @dataclass
 class SiPMState:
     """Mutable accumulators for SiPM data."""
 
-    hg_sum: np.ndarray = field(
-        default_factory=lambda: np.zeros(_N_CHANNELS, dtype=np.float64)
-    )
-    hg_sum_sq: np.ndarray = field(
-        default_factory=lambda: np.zeros(_N_CHANNELS, dtype=np.float64)
-    )
+    hg_sum: np.ndarray
+    hg_sum_sq: np.ndarray
     n_events: int = 0
 
 
@@ -52,7 +47,11 @@ class SiPMComponent(Component):
         return {"SiPM_rawTree_aligned": ["SiPM_HG"]}
 
     def create_state(self, path: str) -> SiPMState:
-        return SiPMState()
+        n_ch = get_settings().n_sipm_channels
+        return SiPMState(
+            hg_sum=np.zeros(n_ch, dtype=np.float64),
+            hg_sum_sq=np.zeros(n_ch, dtype=np.float64),
+        )
 
     def fill_batch(self, state: SiPMState, tree_name: str, batch: ak.Array) -> None:
         hg = np.asarray(batch["SiPM_HG"], dtype=np.float64)
@@ -62,9 +61,10 @@ class SiPMComponent(Component):
 
     def finalize(self, state: SiPMState) -> SiPMResults:
         n = state.n_events
+        n_ch = get_settings().n_sipm_channels
         if n == 0:
             return SiPMResults(
-                hg_mean=np.zeros(_N_CHANNELS), hg_std=np.zeros(_N_CHANNELS)
+                hg_mean=np.zeros(n_ch), hg_std=np.zeros(n_ch)
             )
         mean = state.hg_sum / n
         var = state.hg_sum_sq / n - mean**2

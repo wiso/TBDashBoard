@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
-# Pattern: merged_sps2025_run990.root → run number 990
-_RUN_PATTERN = re.compile(r"run(\d+)\.root$", re.IGNORECASE)
+from tb_monitor.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -34,13 +36,15 @@ def scan_directory(directory: str | Path) -> list[RunFile]:
     """
     directory = Path(directory)
     results: list[RunFile] = []
+    pattern = re.compile(get_settings().run_file_pattern, re.IGNORECASE)
 
     for p in directory.glob("*.root"):
-        m = _RUN_PATTERN.search(p.name)
+        m = pattern.search(p.name)
         if m:
             results.append(RunFile(path=p, run_number=int(m.group(1)), filename=p.name))
 
     results.sort(key=lambda r: r.run_number)
+    logger.info("Found %d run files in %s", len(results), directory)
     return results
 
 

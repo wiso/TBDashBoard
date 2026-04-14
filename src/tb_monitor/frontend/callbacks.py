@@ -8,6 +8,7 @@ from dash import Dash, Input, Output, no_update
 
 from tb_monitor.backend.histograms import process_run
 from tb_monitor.components import COMPONENTS
+from tb_monitor.settings import get_settings
 from tb_monitor.themes import THEMES
 
 # Module-level cache: replaced atomically when the user selects a run.
@@ -19,7 +20,7 @@ def _get_all_results(path: str) -> dict[str, Any]:
     """Return cached results, reprocessing only if the path changed."""
     global _current_run_path, _current_results
     if path != _current_run_path:
-        _current_results = process_run(path)
+        _current_results = process_run(path, step_size=get_settings().step_size)
         _current_run_path = path
     assert _current_results is not None
     return _current_results
@@ -59,17 +60,18 @@ def register_callbacks(app: Dash) -> None:
     @app.callback(
         Output("run-metadata", "children"),
         Output("run-data-loaded", "data"),
+        Output("loading-trigger", "children"),
         Input("run-selector", "value"),
     )
     def load_run(path: str | None):
         if not path:
-            return "", no_update
+            return "", no_update, no_update
         results = _get_all_results(path)
         meta = results.get("_metadata", {})
         overview = results.get("overview")
         n_events = getattr(overview, "n_events", "?")
         info = f"Run {meta.get('runNumber', '?')} — {n_events} events"
-        return info, path
+        return info, path, ""
 
     _tab_map = {f"tab-{comp.name}": comp for comp in COMPONENTS}
 

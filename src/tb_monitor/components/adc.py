@@ -6,7 +6,7 @@ excluding auxiliary/special channels which are in the AuxComponent.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import awkward as ak
@@ -16,31 +16,20 @@ import plotly.graph_objects as go
 from dash import Input, Output, dcc, html, no_update
 
 from tb_monitor.backend.channel_map import (
-    CHERENKOV_CHANNELS,
-    SCINTILLATION_CHANNELS,
+    cherenkov_channels,
+    scintillation_channels,
 )
 from tb_monitor.components.base import Component
+from tb_monitor.settings import get_settings
 from tb_monitor.themes import THEMES
-
-_N_CHANNELS = 224
-_ADC_BINS, _ADC_LO, _ADC_HI = 512, 0.0, 4096.0
-_CALO_CHANNELS = sorted(SCINTILLATION_CHANNELS + CHERENKOV_CHANNELS)
-_CALO_IDX = np.array(_CALO_CHANNELS)
-_S_SET = frozenset(SCINTILLATION_CHANNELS)
-_C_SET = frozenset(CHERENKOV_CHANNELS)
-
 
 @dataclass
 class ADCState:
     """Mutable accumulators for ADC data."""
 
     adc_2d: hist.Hist
-    adc_sum: np.ndarray = field(
-        default_factory=lambda: np.zeros(_N_CHANNELS, dtype=np.float64)
-    )
-    adc_sum_sq: np.ndarray = field(
-        default_factory=lambda: np.zeros(_N_CHANNELS, dtype=np.float64)
-    )
+    adc_sum: np.ndarray
+    adc_sum_sq: np.ndarray
     n_events: int = 0
 
 
@@ -59,8 +48,6 @@ class ADCResults:
 class ADCComponent(Component):
     """ADC channel-map heatmap and per-channel mean/RMS."""
 
-    _channels = np.arange(_N_CHANNELS)
-
     @property
     def name(self) -> str:
         return "adc"
@@ -73,40 +60,54 @@ class ADCComponent(Component):
         return {"CERNSPS2025": ["ADCs"]}
 
     def create_state(self, path: str) -> ADCState:
+        s = get_settings()
+        n_ch = s.n_adc_channels
         return ADCState(
             adc_2d=hist.Hist(
                 hist.axis.Regular(
-                    _N_CHANNELS, -0.5, _N_CHANNELS - 0.5,
+                    n_ch, -0.5, n_ch - 0.5,
                     name="channel", label="ADC Channel",
                 ),
-                hist.axis.Regular(_ADC_BINS, _ADC_LO, _ADC_HI, name="adc", label="ADC"),
+                hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"),
             ),
+            adc_sum=np.zeros(n_ch, dtype=np.float64),
+            adc_sum_sq=np.zeros(n_ch, dtype=np.float64),
         )
 
     def fill_batch(self, state: ADCState, tree_name: str, batch: ak.Array) -> None:
         adcs = np.asarray(batch["ADCs"], dtype=np.float64)
         state.n_events += adcs.shape[0]
-        ch = np.broadcast_to(self._channels, adcs.shape).ravel()
-        state.adc_2d.fill(channel=ch, adc=adcs.ravel())
+        n_ch = adcs.shape[1]
+        ch = np.broadcast_to(np.arange(n_ch), adcs.shape).ravel()
+        adcs_int = np.asarray(adcs, dtype=np.int64).ravel()
+        state.adc_2d.fill(channel=ch, adc=adcs_int)
         state.adc_sum += adcs.sum(axis=0)
         state.adc_sum_sq += (adcs**2).sum(axis=0)
 
     def finalize(self, state: ADCState) -> ADCResults:
+        s = get_settings()
+        n_ch = s.n_adc_channels
         n = state.n_events
         if n == 0:
-            mean = np.zeros(_N_CHANNELS)
-            std = np.zeros(_N_CHANNELS)
+            mean = np.zeros(n_ch)
+            std = np.zeros(n_ch)
         else:
             mean = state.adc_sum / n
             var = state.adc_sum_sq / n - mean**2
             np.clip(var, 0.0, None, out=var)
             std = np.sqrt(var)
 
-        s_mask = np.array([ch in _S_SET for ch in _CALO_CHANNELS])
-        c_mask = np.array([ch in _C_SET for ch in _CALO_CHANNELS])
+        s_chs = scintillation_channels()
+        c_chs = cherenkov_channels()
+        calo_channels = sorted(s_chs + c_chs)
+        calo_idx = np.array(calo_channels)
+        s_set = set(s_chs)
+        c_set = set(c_chs)
+        s_mask = np.array([ch in s_set for ch in calo_channels])
+        c_mask = np.array([ch in c_set for ch in calo_channels])
         return ADCResults(
             adc_2d=state.adc_2d, mean=mean, std=std,
-            calo_channels=_CALO_IDX, s_mask=s_mask, c_mask=c_mask,
+            calo_channels=calo_idx, s_mask=s_mask, c_mask=c_mask,
         )
 
     # ── frontend ────────────────────────────────────────────────────
@@ -167,7 +168,9 @@ class ADCComponent(Component):
             h = get_results(path).adc_2d
             values, xedges, yedges = h.to_numpy()
             # Restrict to calorimeter channels (0-127 excl. specials)
-            calo_bins = _CALO_IDX
+            s_chs = scintillation_channels()
+            c_chs = cherenkov_channels()
+            calo_bins = np.array(sorted(s_chs + c_chs))
             xcenters = 0.5 * (xedges[:-1] + xedges[1:])
             # Find bin indices closest to each calo channel
             bin_idx = np.searchsorted(xcenters, calo_bins)

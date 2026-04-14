@@ -11,13 +11,9 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import Input, Output, dcc, html, no_update
 
-from tb_monitor.backend.channel_map import SPECIAL_CHANNELS
 from tb_monitor.components.base import Component
+from tb_monitor.settings import get_settings
 from tb_monitor.themes import THEMES
-
-_MUON_CH = 161
-_ADC_BINS, _ADC_LO, _ADC_HI = 512, 0.0, 4096.0
-_PEDESTAL_MASK = 2
 
 
 @dataclass
@@ -51,21 +47,23 @@ class MuonComponent(Component):
         return {"CERNSPS2025": ["ADCs", "TriggerMask"]}
 
     def create_state(self, path: str) -> MuonState:
+        s = get_settings()
         return MuonState(
             all_events=hist.Hist(
-                hist.axis.Regular(_ADC_BINS, _ADC_LO, _ADC_HI, name="adc", label="ADC"),
+                hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"),
             ),
             pedestal=hist.Hist(
-                hist.axis.Regular(_ADC_BINS, _ADC_LO, _ADC_HI, name="adc", label="ADC"),
+                hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"),
             ),
         )
 
     def fill_batch(self, state: MuonState, tree_name: str, batch: ak.Array) -> None:
-        adc = np.asarray(batch["ADCs"], dtype=np.float64)[:, _MUON_CH]
+        s = get_settings()
+        adc = np.asarray(batch["ADCs"], dtype=np.int64)[:, s.muon_channel]
         mask_val = np.asarray(batch["TriggerMask"])
 
         state.all_events.fill(adc=adc)
-        state.pedestal.fill(adc=adc[mask_val == _PEDESTAL_MASK])
+        state.pedestal.fill(adc=adc[mask_val == s.pedestal_trigger_mask])
 
     def finalize(self, state: MuonState) -> MuonResults:
         return MuonResults(all_events=state.all_events, pedestal=state.pedestal)
@@ -73,54 +71,44 @@ class MuonComponent(Component):
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
-        return html.Div(
-            style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
-            children=[
-                html.Div([
-                    html.H3("Muon Counter ADC — All Events"),
-                    dcc.Graph(id="muon-all-plot"),
-                ]),
-                html.Div([
-                    html.H3("Muon Counter ADC — Pedestal (TriggerMask=2)"),
-                    dcc.Graph(id="muon-ped-plot"),
-                ]),
-            ],
-        )
+        return html.Div([
+            html.H3("Muon Counter ADC Distribution"),
+            dcc.Graph(id="muon-plot"),
+        ])
 
     def register_callbacks(self, app, get_results) -> None:
         @app.callback(
-            Output("muon-all-plot", "figure"),
+            Output("muon-plot", "figure"),
             Input("run-data-loaded", "data"),
             Input("theme-store", "data"),
         )
-        def update_muon_all(path: str | None, theme: str) -> Any:
+        def update_muon(path: str | None, theme: str) -> Any:
             if not path:
                 return no_update
             template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
-            h = get_results(path).all_events
-            values, edges = h.to_numpy()
-            centers = 0.5 * (edges[:-1] + edges[1:])
-            fig = go.Figure(go.Bar(x=centers, y=values, width=edges[1] - edges[0]))
-            fig.update_layout(
-                template=template,
-                xaxis_title="ADC", yaxis_title="Events",
-                margin=dict(l=50, r=30, t=30, b=50),
-            )
-            return fig
+            r = get_results(path)
 
-        @app.callback(
-            Output("muon-ped-plot", "figure"),
-            Input("run-data-loaded", "data"),
-            Input("theme-store", "data"),
-        )
-        def update_muon_ped(path: str | None, theme: str) -> Any:
-            if not path:
-                return no_update
-            template = THEMES.get(theme, THEMES["light"])["plotTemplate"]
-            h = get_results(path).pedestal
-            values, edges = h.to_numpy()
+            h_all = r.all_events
+            v_all, edges = h_all.to_numpy()
             centers = 0.5 * (edges[:-1] + edges[1:])
-            fig = go.Figure(go.Bar(x=centers, y=values, width=edges[1] - edges[0]))
+            bw = edges[1] - edges[0]
+
+            h_ped = r.pedestal
+            v_ped, _ = h_ped.to_numpy()
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=centers, y=v_all,
+                mode="lines", line_shape="hvh",
+                name="All events",
+                fill="tozeroy", opacity=0.5,
+            ))
+            fig.add_trace(go.Scatter(
+                x=centers, y=v_ped,
+                mode="lines", line_shape="hvh",
+                name="Pedestal (TriggerMask=2)",
+                fill="tozeroy", opacity=0.5,
+            ))
             fig.update_layout(
                 template=template,
                 xaxis_title="ADC", yaxis_title="Events",

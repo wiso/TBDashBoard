@@ -11,12 +11,13 @@ import numpy as np
 import pytest
 
 from tb_monitor.backend.channel_map import (
-    AUX_CHANNEL_SET,
-    CHERENKOV_CHANNELS,
-    SCINTILLATION_CHANNELS,
+    aux_channel_set,
+    cherenkov_channels,
+    scintillation_channels,
 )
 from tb_monitor.components.adc import ADCComponent, ADCResults, ADCState
 from tb_monitor.components.aux import AuxComponent, AuxResults
+from tb_monitor.components.cherenkov_counter import CherenkovCounterComponent, CherCounterResults
 from tb_monitor.components.muon import MuonComponent, MuonResults
 from tb_monitor.components.overview import (
     OverviewComponent,
@@ -138,11 +139,13 @@ class TestADCComponent:
 
         # calo_channels should only contain S and C channels
         calo_set = set(result.calo_channels.tolist())
-        assert calo_set == set(SCINTILLATION_CHANNELS + CHERENKOV_CHANNELS)
-        assert calo_set.isdisjoint(AUX_CHANNEL_SET)
+        s_chs = scintillation_channels()
+        c_chs = cherenkov_channels()
+        assert calo_set == set(s_chs + c_chs)
+        assert calo_set.isdisjoint(aux_channel_set())
         # s_mask and c_mask should partition calo_channels
-        assert result.s_mask.sum() == len(SCINTILLATION_CHANNELS)
-        assert result.c_mask.sum() == len(CHERENKOV_CHANNELS)
+        assert result.s_mask.sum() == len(s_chs)
+        assert result.c_mask.sum() == len(c_chs)
         assert (result.s_mask | result.c_mask).all()
 
     def test_online_mean_matches_direct(
@@ -164,7 +167,7 @@ class TestADCComponent:
         result = comp.finalize(state)
 
         val, xedges, yedges = result.adc_2d.to_numpy()
-        assert val.shape == (224, 512)
+        assert val.shape == (224, 4096)
         # Total entries should equal n_events × n_channels
         assert result.adc_2d.sum() == 100 * 224
 
@@ -379,3 +382,65 @@ class TestMuonComponent:
         result = comp.finalize(state)
         assert result.all_events.sum() == 0
         assert result.pedestal.sum() == 0
+
+
+# ── Cherenkov Counter Component ─────────────────────────────────────
+
+
+class TestCherenkovCounterComponent:
+    """Tests for CherenkovCounterComponent batch accumulation and finalize."""
+
+    @pytest.fixture()
+    def comp(self) -> CherenkovCounterComponent:
+        return CherenkovCounterComponent()
+
+    def test_name_and_label(self, comp: CherenkovCounterComponent) -> None:
+        assert comp.name == "cherenkov_counter"
+        assert comp.label == "Cherenkov Counters"
+
+    def test_tree_branches(self, comp: CherenkovCounterComponent) -> None:
+        tb = comp.tree_branches()
+        assert "CERNSPS2025" in tb
+        assert "ADCs" in tb["CERNSPS2025"]
+        assert "TriggerMask" in tb["CERNSPS2025"]
+
+    def test_fill_and_finalize(
+        self, comp: CherenkovCounterComponent, cernsps_batch: ak.Array
+    ) -> None:
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
+        result = comp.finalize(state)
+
+        assert isinstance(result, CherCounterResults)
+        # Default settings have Cher1 (162), Cher2 (163), Cher3 (164)
+        assert set(result.labels.values()) == {"Cher1", "Cher2", "Cher3"}
+        for ch in result.all_events:
+            assert result.all_events[ch].sum() == 100
+            assert result.pedestal[ch].sum() <= 100
+
+    def test_pedestal_filters_by_trigger_mask(
+        self, comp: CherenkovCounterComponent, rng: np.random.Generator
+    ) -> None:
+        n = 200
+        n_adc = 224
+        masks = np.array([1] * 120 + [2] * 80)
+        rng.shuffle(masks)
+        batch = ak.Array({
+            "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
+            "TriggerMask": masks,
+        })
+
+        state = comp.create_state("")
+        comp.fill_batch(state, "CERNSPS2025", batch)
+        result = comp.finalize(state)
+
+        for ch in result.all_events:
+            assert result.all_events[ch].sum() == 200
+            assert result.pedestal[ch].sum() == 80
+
+    def test_empty_finalize(self, comp: CherenkovCounterComponent) -> None:
+        state = comp.create_state("")
+        result = comp.finalize(state)
+        for ch in result.all_events:
+            assert result.all_events[ch].sum() == 0
+            assert result.pedestal[ch].sum() == 0

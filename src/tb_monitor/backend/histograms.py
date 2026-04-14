@@ -7,12 +7,16 @@ of events lives in memory at a time.
 
 from __future__ import annotations
 
+import logging
+import time
 from collections import defaultdict
 from typing import Any
 
 from tb_monitor.backend.data_loader import iter_tree, load_metadata
 from tb_monitor.components import COMPONENTS
 from tb_monitor.components.base import Component
+
+logger = logging.getLogger(__name__)
 
 
 def process_run(
@@ -38,6 +42,9 @@ def process_run(
     """
     if components is None:
         components = COMPONENTS
+
+    t0 = time.perf_counter()
+    logger.info("Processing run %s with %d components", path, len(components))
 
     metadata = load_metadata(path)
 
@@ -67,10 +74,18 @@ def process_run(
         merged = tree_to_branches[tree_name]
         branch_list = sorted(merged) if merged is not None else None
 
+        n_batches = 0
+        n_entries = 0
         for batch in iter_tree(path, tree_name, branches=branch_list,
                                step_size=step_size):
+            n_batches += 1
+            n_entries += len(batch)
             for comp in comps:
                 comp.fill_batch(states[comp.name], tree_name, batch)
+        logger.info(
+            "Tree %s: %d batches, %d entries → %d components",
+            tree_name, n_batches, n_entries, len(comps),
+        )
 
     # ── Finalize ────────────────────────────────────────────────────
     results: dict[str, Any] = {}
@@ -80,4 +95,6 @@ def process_run(
         results[comp.name] = result
 
     results["_metadata"] = metadata
+    elapsed = time.perf_counter() - t0
+    logger.info("Run processed in %.2fs", elapsed)
     return results

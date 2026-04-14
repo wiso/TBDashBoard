@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "tb-monitor"
 version = "0.1.0"
@@ -16,7 +12,7 @@ dependencies = [
     "numpy>=1.26",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",
@@ -25,8 +21,12 @@ dev = [
 [project.scripts]
 tb-monitor = "tb_monitor.app:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tb_monitor"]
 
 [tool.ruff]
 line-length = 100
