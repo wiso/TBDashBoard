@@ -43,4 +43,5 @@ def sipm_batch(rng: np.random.Generator) -> ak.Array:
     n_ch = 1024
     return ak.Array({
         "SiPM_HG": rng.uniform(0.0, 500.0, size=(n_events, n_ch)),
+        "SiPM_LG": rng.uniform(0.0, 200.0, size=(n_events, n_ch)),
     })

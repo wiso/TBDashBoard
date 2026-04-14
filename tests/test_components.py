@@ -275,7 +275,7 @@ class TestSiPMComponent:
         assert comp.label == "SiPM"
 
     def test_tree_branches(self, comp: SiPMComponent) -> None:
-        assert comp.tree_branches() == {"SiPM_rawTree_aligned": ["SiPM_HG"]}
+        assert comp.tree_branches() == {"SiPM_rawTree_aligned": ["SiPM_HG", "SiPM_LG"]}
 
     def test_fill_and_finalize(
         self, comp: SiPMComponent, sipm_batch: ak.Array
@@ -287,6 +287,9 @@ class TestSiPMComponent:
         assert isinstance(result, SiPMResults)
         assert result.hg_mean.shape == (1024,)
         assert result.hg_std.shape == (1024,)
+        assert result.lg_mean.shape == (1024,)
+        assert result.lg_std.shape == (1024,)
+        assert result.zero_fraction.shape == (1024,)
 
     def test_online_mean_matches_direct(
         self, comp: SiPMComponent, sipm_batch: ak.Array
@@ -295,34 +298,69 @@ class TestSiPMComponent:
         comp.fill_batch(state, "SiPM_rawTree_aligned", sipm_batch)
         result = comp.finalize(state)
 
+        # Fixture has no exact zeros, so mean over nonzero == mean over all
         hg = np.asarray(sipm_batch["SiPM_HG"], dtype=np.float64)
         np.testing.assert_allclose(result.hg_mean, hg.mean(axis=0), atol=1e-10)
         np.testing.assert_allclose(result.hg_std, hg.std(axis=0), atol=1e-10)
+        lg = np.asarray(sipm_batch["SiPM_LG"], dtype=np.float64)
+        np.testing.assert_allclose(result.lg_mean, lg.mean(axis=0), atol=1e-10)
 
     def test_empty_finalize(self, comp: SiPMComponent) -> None:
         state = comp.create_state("")
         result = comp.finalize(state)
         np.testing.assert_array_equal(result.hg_mean, np.zeros(1024))
         np.testing.assert_array_equal(result.hg_std, np.zeros(1024))
+        np.testing.assert_array_equal(result.lg_mean, np.zeros(1024))
+        np.testing.assert_array_equal(result.lg_std, np.zeros(1024))
+        np.testing.assert_array_equal(result.zero_fraction, np.zeros(1024))
 
     def test_two_batch_accumulation(
         self, comp: SiPMComponent, rng: np.random.Generator
     ) -> None:
         n_ch = 1024
-        a1 = rng.uniform(0, 500, size=(50, n_ch))
-        a2 = rng.uniform(0, 500, size=(30, n_ch))
+        a1_hg = rng.uniform(0, 500, size=(50, n_ch))
+        a1_lg = rng.uniform(0, 200, size=(50, n_ch))
+        a2_hg = rng.uniform(0, 500, size=(30, n_ch))
+        a2_lg = rng.uniform(0, 200, size=(30, n_ch))
 
         state = comp.create_state("")
-        comp.fill_batch(state, "SiPM_rawTree_aligned", ak.Array({"SiPM_HG": a1}))
-        comp.fill_batch(state, "SiPM_rawTree_aligned", ak.Array({"SiPM_HG": a2}))
+        comp.fill_batch(state, "SiPM_rawTree_aligned",
+                        ak.Array({"SiPM_HG": a1_hg, "SiPM_LG": a1_lg}))
+        comp.fill_batch(state, "SiPM_rawTree_aligned",
+                        ak.Array({"SiPM_HG": a2_hg, "SiPM_LG": a2_lg}))
         result = comp.finalize(state)
 
-        combined = np.concatenate([a1, a2], axis=0)
+        combined_hg = np.concatenate([a1_hg, a2_hg], axis=0)
         np.testing.assert_allclose(
-            result.hg_mean, combined.mean(axis=0), atol=1e-10
+            result.hg_mean, combined_hg.mean(axis=0), atol=1e-10
         )
         np.testing.assert_allclose(
-            result.hg_std, combined.std(axis=0), atol=1e-10
+            result.hg_std, combined_hg.std(axis=0), atol=1e-10
+        )
+        combined_lg = np.concatenate([a1_lg, a2_lg], axis=0)
+        np.testing.assert_allclose(
+            result.lg_mean, combined_lg.mean(axis=0), atol=1e-10
+        )
+
+    def test_zero_fraction(
+        self, comp: SiPMComponent, rng: np.random.Generator
+    ) -> None:
+        n_ch = 1024
+        hg = rng.uniform(1, 500, size=(100, n_ch))
+        lg = rng.uniform(1, 200, size=(100, n_ch))
+        # Set first 20 events of channel 0 to zero
+        hg[:20, 0] = 0.0
+
+        state = comp.create_state("")
+        comp.fill_batch(state, "SiPM_rawTree_aligned",
+                        ak.Array({"SiPM_HG": hg, "SiPM_LG": lg}))
+        result = comp.finalize(state)
+
+        assert result.zero_fraction[0] == pytest.approx(0.2)
+        assert result.zero_fraction[1] == pytest.approx(0.0)
+        # HG mean for ch 0 should only consider nonzero entries
+        np.testing.assert_allclose(
+            result.hg_mean[0], hg[20:, 0].mean(), atol=1e-10
         )
 
 
