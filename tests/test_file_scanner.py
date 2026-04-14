@@ -41,6 +41,10 @@ class TestScanDirectory:
     def test_empty_directory(self, tmp_path: Path) -> None:
         assert scan_directory(tmp_path) == []
 
+    def test_nonexistent_directory(self, tmp_path: Path) -> None:
+        result = scan_directory(tmp_path / "no_such_dir")
+        assert result == []
+
     def test_runfile_fields(self, tmp_path: Path) -> None:
         fname = "merged_sps2025_run7.root"
         (tmp_path / fname).touch()
