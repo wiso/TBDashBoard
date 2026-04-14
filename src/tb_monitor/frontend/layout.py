@@ -5,8 +5,6 @@ from __future__ import annotations
 from dash import dcc, html
 
 from tb_monitor.components import COMPONENTS
-from tb_monitor.components.base import Component
-from tb_monitor.themes import THEMES
 
 
 def make_layout(run_options: list[dict]) -> html.Div:
@@ -24,10 +22,7 @@ def make_layout(run_options: list[dict]) -> html.Div:
     html.Div
         The top-level Dash layout.
     """
-    tabs = [
-        dcc.Tab(label=comp.label, value=f"tab-{comp.name}")
-        for comp in COMPONENTS
-    ]
+    tabs = [dcc.Tab(label=comp.label, value=f"tab-{comp.name}") for comp in COMPONENTS]
     default_tab = f"tab-{COMPONENTS[0].name}" if COMPONENTS else ""
 
     return html.Div(

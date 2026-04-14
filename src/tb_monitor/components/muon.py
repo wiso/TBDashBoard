@@ -71,10 +71,12 @@ class MuonComponent(Component):
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
-        return html.Div([
-            html.H3("Muon Counter ADC Distribution"),
-            dcc.Graph(id="muon-plot"),
-        ])
+        return html.Div(
+            [
+                html.H3("Muon Counter ADC Distribution"),
+                dcc.Graph(id="muon-plot"),
+            ]
+        )
 
     def register_callbacks(self, app, get_results) -> None:
         @app.callback(
@@ -94,27 +96,37 @@ class MuonComponent(Component):
             h_all = r.all_events
             v_all, edges = h_all.to_numpy()
             centers = 0.5 * (edges[:-1] + edges[1:])
-            bw = edges[1] - edges[0]
 
             h_ped = r.pedestal
             v_ped, _ = h_ped.to_numpy()
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=centers, y=v_all,
-                mode="lines", line_shape="hvh",
-                name="All events",
-                fill="tozeroy", opacity=0.5,
-            ))
-            fig.add_trace(go.Scatter(
-                x=centers, y=v_ped,
-                mode="lines", line_shape="hvh",
-                name="Pedestal (TriggerMask=2)",
-                fill="tozeroy", opacity=0.5,
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=v_all,
+                    mode="lines",
+                    line_shape="hvh",
+                    name="All events",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=v_ped,
+                    mode="lines",
+                    line_shape="hvh",
+                    name="Pedestal (TriggerMask=2)",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
             fig.update_layout(
                 template=template,
-                xaxis_title="ADC", yaxis_title="Events",
+                xaxis_title="ADC",
+                yaxis_title="Events",
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig

@@ -15,18 +15,17 @@ from tb_monitor.backend.channel_map import (
     cherenkov_channels,
     scintillation_channels,
 )
-from tb_monitor.components.adc import ADCComponent, ADCResults, ADCState
+from tb_monitor.components.adc import ADCComponent, ADCResults
 from tb_monitor.components.aux import AuxComponent, AuxResults
-from tb_monitor.components.cherenkov_counter import CherenkovCounterComponent, CherCounterResults
+from tb_monitor.components.cherenkov_counter import CherCounterResults, CherenkovCounterComponent
 from tb_monitor.components.muon import MuonComponent, MuonResults
 from tb_monitor.components.overview import (
     OverviewComponent,
     OverviewResults,
     OverviewState,
 )
-from tb_monitor.components.sipm import SiPMComponent, SiPMResults, SiPMState
+from tb_monitor.components.sipm import SiPMComponent, SiPMResults
 from tb_monitor.components.veto import VetoComponent, VetoResults
-
 
 # ── Overview Component ──────────────────────────────────────────────
 
@@ -118,9 +117,7 @@ class TestADCComponent:
     def test_tree_branches(self, comp: ADCComponent) -> None:
         assert comp.tree_branches() == {"CERNSPS2025": ["ADCs"]}
 
-    def test_fill_and_finalize(
-        self, comp: ADCComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_fill_and_finalize(self, comp: ADCComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -131,9 +128,7 @@ class TestADCComponent:
         # Mean should be roughly in the middle of 0-4096
         assert 1500 < result.mean.mean() < 2500
 
-    def test_calo_channels_exclude_aux(
-        self, comp: ADCComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_calo_channels_exclude_aux(self, comp: ADCComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -149,9 +144,7 @@ class TestADCComponent:
         assert result.c_mask.sum() == len(c_chs)
         assert (result.s_mask | result.c_mask).all()
 
-    def test_online_mean_matches_direct(
-        self, comp: ADCComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_online_mean_matches_direct(self, comp: ADCComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -160,9 +153,7 @@ class TestADCComponent:
         np.testing.assert_allclose(result.mean, adcs.mean(axis=0), atol=1e-10)
         np.testing.assert_allclose(result.std, adcs.std(axis=0), atol=1e-10)
 
-    def test_2d_histogram_shape(
-        self, comp: ADCComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_2d_histogram_shape(self, comp: ADCComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -178,9 +169,7 @@ class TestADCComponent:
         np.testing.assert_array_equal(result.mean, np.zeros(224))
         np.testing.assert_array_equal(result.std, np.zeros(224))
 
-    def test_two_batch_accumulation(
-        self, comp: ADCComponent, rng: np.random.Generator
-    ) -> None:
+    def test_two_batch_accumulation(self, comp: ADCComponent, rng: np.random.Generator) -> None:
         """Verify that two-batch online stats match full-array computation."""
         n_ch = 224
         a1 = rng.integers(0, 4096, size=(60, n_ch)).astype(np.float64)
@@ -213,9 +202,7 @@ class TestAuxComponent:
     def test_tree_branches(self, comp: AuxComponent) -> None:
         assert comp.tree_branches() == {"CERNSPS2025": ["ADCs"]}
 
-    def test_fill_and_finalize(
-        self, comp: AuxComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_fill_and_finalize(self, comp: AuxComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -230,9 +217,7 @@ class TestAuxComponent:
         assert result.leak_mean.shape == (16,)
         assert result.leak_std.shape == (16,)
 
-    def test_beam_mean_matches_direct(
-        self, comp: AuxComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_beam_mean_matches_direct(self, comp: AuxComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -242,9 +227,7 @@ class TestAuxComponent:
         expected_mean = adcs[:, 161].mean()
         np.testing.assert_allclose(result.beam_mean["Muon"], expected_mean, atol=1e-10)
 
-    def test_leakage_mean_matches_direct(
-        self, comp: AuxComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_leakage_mean_matches_direct(self, comp: AuxComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -277,9 +260,7 @@ class TestSiPMComponent:
     def test_tree_branches(self, comp: SiPMComponent) -> None:
         assert comp.tree_branches() == {"SiPM_rawTree_aligned": ["SiPM_HG", "SiPM_LG"]}
 
-    def test_fill_and_finalize(
-        self, comp: SiPMComponent, sipm_batch: ak.Array
-    ) -> None:
+    def test_fill_and_finalize(self, comp: SiPMComponent, sipm_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "SiPM_rawTree_aligned", sipm_batch)
         result = comp.finalize(state)
@@ -291,9 +272,7 @@ class TestSiPMComponent:
         assert result.lg_std.shape == (1024,)
         assert result.zero_fraction.shape == (1024,)
 
-    def test_online_mean_matches_direct(
-        self, comp: SiPMComponent, sipm_batch: ak.Array
-    ) -> None:
+    def test_online_mean_matches_direct(self, comp: SiPMComponent, sipm_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "SiPM_rawTree_aligned", sipm_batch)
         result = comp.finalize(state)
@@ -314,9 +293,7 @@ class TestSiPMComponent:
         np.testing.assert_array_equal(result.lg_std, np.zeros(1024))
         np.testing.assert_array_equal(result.zero_fraction, np.zeros(1024))
 
-    def test_two_batch_accumulation(
-        self, comp: SiPMComponent, rng: np.random.Generator
-    ) -> None:
+    def test_two_batch_accumulation(self, comp: SiPMComponent, rng: np.random.Generator) -> None:
         n_ch = 1024
         a1_hg = rng.uniform(0, 500, size=(50, n_ch))
         a1_lg = rng.uniform(0, 200, size=(50, n_ch))
@@ -324,27 +301,21 @@ class TestSiPMComponent:
         a2_lg = rng.uniform(0, 200, size=(30, n_ch))
 
         state = comp.create_state("")
-        comp.fill_batch(state, "SiPM_rawTree_aligned",
-                        ak.Array({"SiPM_HG": a1_hg, "SiPM_LG": a1_lg}))
-        comp.fill_batch(state, "SiPM_rawTree_aligned",
-                        ak.Array({"SiPM_HG": a2_hg, "SiPM_LG": a2_lg}))
+        comp.fill_batch(
+            state, "SiPM_rawTree_aligned", ak.Array({"SiPM_HG": a1_hg, "SiPM_LG": a1_lg})
+        )
+        comp.fill_batch(
+            state, "SiPM_rawTree_aligned", ak.Array({"SiPM_HG": a2_hg, "SiPM_LG": a2_lg})
+        )
         result = comp.finalize(state)
 
         combined_hg = np.concatenate([a1_hg, a2_hg], axis=0)
-        np.testing.assert_allclose(
-            result.hg_mean, combined_hg.mean(axis=0), atol=1e-10
-        )
-        np.testing.assert_allclose(
-            result.hg_std, combined_hg.std(axis=0), atol=1e-10
-        )
+        np.testing.assert_allclose(result.hg_mean, combined_hg.mean(axis=0), atol=1e-10)
+        np.testing.assert_allclose(result.hg_std, combined_hg.std(axis=0), atol=1e-10)
         combined_lg = np.concatenate([a1_lg, a2_lg], axis=0)
-        np.testing.assert_allclose(
-            result.lg_mean, combined_lg.mean(axis=0), atol=1e-10
-        )
+        np.testing.assert_allclose(result.lg_mean, combined_lg.mean(axis=0), atol=1e-10)
 
-    def test_zero_fraction(
-        self, comp: SiPMComponent, rng: np.random.Generator
-    ) -> None:
+    def test_zero_fraction(self, comp: SiPMComponent, rng: np.random.Generator) -> None:
         n_ch = 1024
         hg = rng.uniform(1, 500, size=(100, n_ch))
         lg = rng.uniform(1, 200, size=(100, n_ch))
@@ -352,16 +323,13 @@ class TestSiPMComponent:
         hg[:20, 0] = 0.0
 
         state = comp.create_state("")
-        comp.fill_batch(state, "SiPM_rawTree_aligned",
-                        ak.Array({"SiPM_HG": hg, "SiPM_LG": lg}))
+        comp.fill_batch(state, "SiPM_rawTree_aligned", ak.Array({"SiPM_HG": hg, "SiPM_LG": lg}))
         result = comp.finalize(state)
 
         assert result.zero_fraction[0] == pytest.approx(0.2)
         assert result.zero_fraction[1] == pytest.approx(0.0)
         # HG mean for ch 0 should only consider nonzero entries
-        np.testing.assert_allclose(
-            result.hg_mean[0], hg[20:, 0].mean(), atol=1e-10
-        )
+        np.testing.assert_allclose(result.hg_mean[0], hg[20:, 0].mean(), atol=1e-10)
 
 
 # ── Muon Component ──────────────────────────────────────────────────
@@ -384,9 +352,7 @@ class TestMuonComponent:
         assert "ADCs" in tb["CERNSPS2025"]
         assert "TriggerMask" in tb["CERNSPS2025"]
 
-    def test_fill_and_finalize(
-        self, comp: MuonComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_fill_and_finalize(self, comp: MuonComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -404,10 +370,12 @@ class TestMuonComponent:
         n_adc = 224
         masks = np.array([1] * 120 + [2] * 80)
         rng.shuffle(masks)
-        batch = ak.Array({
-            "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
-            "TriggerMask": masks,
-        })
+        batch = ak.Array(
+            {
+                "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
+                "TriggerMask": masks,
+            }
+        )
 
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", batch)
@@ -464,10 +432,12 @@ class TestCherenkovCounterComponent:
         n_adc = 224
         masks = np.array([1] * 120 + [2] * 80)
         rng.shuffle(masks)
-        batch = ak.Array({
-            "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
-            "TriggerMask": masks,
-        })
+        batch = ak.Array(
+            {
+                "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
+                "TriggerMask": masks,
+            }
+        )
 
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", batch)
@@ -505,9 +475,7 @@ class TestVetoComponent:
         assert "ADCs" in tb["CERNSPS2025"]
         assert "TriggerMask" in tb["CERNSPS2025"]
 
-    def test_fill_and_finalize(
-        self, comp: VetoComponent, cernsps_batch: ak.Array
-    ) -> None:
+    def test_fill_and_finalize(self, comp: VetoComponent, cernsps_batch: ak.Array) -> None:
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", cernsps_batch)
         result = comp.finalize(state)
@@ -516,17 +484,17 @@ class TestVetoComponent:
         assert result.all_events.sum() == 100
         assert result.pedestal.sum() <= result.all_events.sum()
 
-    def test_fills_correct_channel(
-        self, comp: VetoComponent, rng: np.random.Generator
-    ) -> None:
+    def test_fills_correct_channel(self, comp: VetoComponent, rng: np.random.Generator) -> None:
         """Verify the histogram is filled from the veto channel (63)."""
         n, n_adc = 50, 224
         adcs = np.zeros((n, n_adc), dtype=np.int64)
         adcs[:, 63] = 1000  # only veto channel has nonzero
-        batch = ak.Array({
-            "ADCs": adcs,
-            "TriggerMask": np.ones(n, dtype=np.int64),
-        })
+        batch = ak.Array(
+            {
+                "ADCs": adcs,
+                "TriggerMask": np.ones(n, dtype=np.int64),
+            }
+        )
 
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", batch)
@@ -561,10 +529,12 @@ class TestVetoComponent:
         n_adc = 224
         masks = np.array([1] * 120 + [2] * 80)
         rng.shuffle(masks)
-        batch = ak.Array({
-            "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
-            "TriggerMask": masks,
-        })
+        batch = ak.Array(
+            {
+                "ADCs": rng.integers(0, 4096, size=(n, n_adc)).astype(np.float64),
+                "TriggerMask": masks,
+            }
+        )
 
         state = comp.create_state("")
         comp.fill_batch(state, "CERNSPS2025", batch)

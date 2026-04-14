@@ -23,6 +23,7 @@ from tb_monitor.components.base import Component
 from tb_monitor.settings import get_settings
 from tb_monitor.themes import THEMES
 
+
 @dataclass
 class ADCState:
     """Mutable accumulators for ADC data."""
@@ -38,11 +39,11 @@ class ADCResults:
     """Immutable results for the ADC tab."""
 
     adc_2d: hist.Hist
-    mean: np.ndarray       # length _N_CHANNELS (all 224)
+    mean: np.ndarray  # length _N_CHANNELS (all 224)
     std: np.ndarray
-    calo_channels: np.ndarray   # indices of calo-only channels
-    s_mask: np.ndarray          # bool mask into calo_channels for S
-    c_mask: np.ndarray          # bool mask into calo_channels for C
+    calo_channels: np.ndarray  # indices of calo-only channels
+    s_mask: np.ndarray  # bool mask into calo_channels for S
+    c_mask: np.ndarray  # bool mask into calo_channels for C
 
 
 class ADCComponent(Component):
@@ -65,8 +66,11 @@ class ADCComponent(Component):
         return ADCState(
             adc_2d=hist.Hist(
                 hist.axis.Regular(
-                    n_ch, -0.5, n_ch - 0.5,
-                    name="channel", label="ADC Channel",
+                    n_ch,
+                    -0.5,
+                    n_ch - 0.5,
+                    name="channel",
+                    label="ADC Channel",
                 ),
                 hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"),
             ),
@@ -106,19 +110,25 @@ class ADCComponent(Component):
         s_mask = np.array([ch in s_set for ch in calo_channels])
         c_mask = np.array([ch in c_set for ch in calo_channels])
         return ADCResults(
-            adc_2d=state.adc_2d, mean=mean, std=std,
-            calo_channels=calo_idx, s_mask=s_mask, c_mask=c_mask,
+            adc_2d=state.adc_2d,
+            mean=mean,
+            std=std,
+            calo_channels=calo_idx,
+            s_mask=s_mask,
+            c_mask=c_mask,
         )
 
     # ── frontend ────────────────────────────────────────────────────
 
     def tab_layout(self) -> html.Div:
-        return html.Div([
-            html.H3("Calorimeter ADC Mean per Channel (S & C)"),
-            dcc.Graph(id="adc-mean-plot"),
-            html.H3("ADC 2D Map (Channel vs ADC)"),
-            dcc.Graph(id="adc-2d-plot"),
-        ])
+        return html.Div(
+            [
+                html.H3("Calorimeter ADC Mean per Channel (S & C)"),
+                dcc.Graph(id="adc-mean-plot"),
+                html.H3("ADC 2D Map (Channel vs ADC)"),
+                dcc.Graph(id="adc-2d-plot"),
+            ]
+        )
 
     def register_callbacks(self, app, get_results) -> None:
         @app.callback(
@@ -139,22 +149,31 @@ class ADCComponent(Component):
             stds = r.std[chs]
             fig = go.Figure()
             # Scintillation trace
-            fig.add_trace(go.Scatter(
-                x=chs[r.s_mask], y=means[r.s_mask],
-                error_y=dict(type="data", array=stds[r.s_mask], visible=True),
-                mode="markers", marker=dict(size=4, color="#636EFA"),
-                name="Scintillation",
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=chs[r.s_mask],
+                    y=means[r.s_mask],
+                    error_y=dict(type="data", array=stds[r.s_mask], visible=True),
+                    mode="markers",
+                    marker=dict(size=4, color="#636EFA"),
+                    name="Scintillation",
+                )
+            )
             # Cherenkov trace
-            fig.add_trace(go.Scatter(
-                x=chs[r.c_mask], y=means[r.c_mask],
-                error_y=dict(type="data", array=stds[r.c_mask], visible=True),
-                mode="markers", marker=dict(size=4, color="#EF553B"),
-                name="Cherenkov",
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=chs[r.c_mask],
+                    y=means[r.c_mask],
+                    error_y=dict(type="data", array=stds[r.c_mask], visible=True),
+                    mode="markers",
+                    marker=dict(size=4, color="#EF553B"),
+                    name="Cherenkov",
+                )
+            )
             fig.update_layout(
                 template=template,
-                xaxis_title="ADC Channel", yaxis_title="Mean ADC",
+                xaxis_title="ADC Channel",
+                yaxis_title="Mean ADC",
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig
@@ -182,15 +201,18 @@ class ADCComponent(Component):
             # Find bin indices closest to each calo channel
             bin_idx = np.searchsorted(xcenters, calo_bins)
             bin_idx = np.clip(bin_idx, 0, len(xcenters) - 1)
-            fig = go.Figure(go.Heatmap(
-                z=values[bin_idx].T,
-                x=calo_bins,
-                y=0.5 * (yedges[:-1] + yedges[1:]),
-                colorscale="Viridis",
-            ))
+            fig = go.Figure(
+                go.Heatmap(
+                    z=values[bin_idx].T,
+                    x=calo_bins,
+                    y=0.5 * (yedges[:-1] + yedges[1:]),
+                    colorscale="Viridis",
+                )
+            )
             fig.update_layout(
                 template=template,
-                xaxis_title="ADC Channel", yaxis_title="ADC Value",
+                xaxis_title="ADC Channel",
+                yaxis_title="ADC Value",
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig

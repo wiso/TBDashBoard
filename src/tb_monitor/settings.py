@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import re
-import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+import tomllib
 
 logger = logging.getLogger(__name__)
 
@@ -39,17 +40,33 @@ class Settings:
     cherenkov_range: tuple[int, int] = (64, 128)
 
     # channel_number → label
-    special_channels: dict[int, str] = field(default_factory=lambda: {
-        31: "PS",
-        63: "Veto",
-        128: "L1", 129: "L2", 130: "L3", 131: "L4",
-        132: "L5", 133: "L6", 134: "L7", 135: "L8",
-        136: "L9", 137: "L10", 138: "L11", 139: "L12",
-        140: "L13", 141: "L14", 142: "L15", 143: "L16",
-        160: "Tail Catcher",
-        161: "Muon",
-        162: "Cher1", 163: "Cher2", 164: "Cher3",
-    })
+    special_channels: dict[int, str] = field(
+        default_factory=lambda: {
+            31: "PS",
+            63: "Veto",
+            128: "L1",
+            129: "L2",
+            130: "L3",
+            131: "L4",
+            132: "L5",
+            133: "L6",
+            134: "L7",
+            135: "L8",
+            136: "L9",
+            137: "L10",
+            138: "L11",
+            139: "L12",
+            140: "L13",
+            141: "L14",
+            142: "L15",
+            143: "L16",
+            160: "Tail Catcher",
+            161: "Muon",
+            162: "Cher1",
+            163: "Cher2",
+            164: "Cher3",
+        }
+    )
 
     leakage_range: tuple[int, int] = (128, 144)
     muon_channel: int = 161
@@ -69,10 +86,7 @@ class Settings:
     def beam_channels(self) -> dict[int, str]:
         """Special channels excluding leakage (i.e. beam line detectors)."""
         lo, hi = self.leakage_range
-        return {
-            ch: label for ch, label in self.special_channels.items()
-            if not (lo <= ch < hi)
-        }
+        return {ch: label for ch, label in self.special_channels.items() if not (lo <= ch < hi)}
 
     @property
     def scintillation_channels(self) -> list[int]:
@@ -86,6 +100,7 @@ class Settings:
     def replace(self, **kwargs: Any) -> Settings:
         """Return a new Settings with selected fields overridden."""
         from dataclasses import asdict
+
         d = asdict(self)
         d.update(kwargs)
         return Settings(**d)
@@ -161,9 +176,7 @@ def load_settings(path: str | Path | None = None) -> Settings:
     try:
         re.compile(settings.run_file_pattern)
     except re.error as exc:
-        raise ValueError(
-            f"Invalid run_file_pattern {settings.run_file_pattern!r}: {exc}"
-        ) from exc
+        raise ValueError(f"Invalid run_file_pattern {settings.run_file_pattern!r}: {exc}") from exc
 
     return settings
 

@@ -72,42 +72,44 @@ class VetoComponent(Component):
 
     def tab_layout(self) -> html.Div:
         s = get_settings()
-        return html.Div([
-            html.H3("Veto Counter ADC Distribution"),
-            dcc.Graph(id="veto-plot"),
-            html.Div(
-                [
-                    html.Label(
-                        "Threshold:",
-                        style={"fontWeight": "bold", "marginRight": "10px"},
-                    ),
-                    dcc.Slider(
-                        id="veto-threshold",
-                        min=s.adc_lo,
-                        max=s.adc_hi,
-                        step=1,
-                        value=400,
-                        marks={
-                            s.adc_lo: str(s.adc_lo),
-                            s.adc_hi // 4: str(s.adc_hi // 4),
-                            s.adc_hi // 2: str(s.adc_hi // 2),
-                            3 * s.adc_hi // 4: str(3 * s.adc_hi // 4),
-                            s.adc_hi - 1: str(s.adc_hi - 1),
-                        },
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                ],
-                style={"margin": "20px 50px"},
-            ),
-            html.Div(
-                id="veto-fraction-text",
-                style={
-                    "textAlign": "center",
-                    "fontSize": "1.2em",
-                    "margin": "10px 0",
-                },
-            ),
-        ])
+        return html.Div(
+            [
+                html.H3("Veto Counter ADC Distribution"),
+                dcc.Graph(id="veto-plot"),
+                html.Div(
+                    [
+                        html.Label(
+                            "Threshold:",
+                            style={"fontWeight": "bold", "marginRight": "10px"},
+                        ),
+                        dcc.Slider(
+                            id="veto-threshold",
+                            min=s.adc_lo,
+                            max=s.adc_hi,
+                            step=1,
+                            value=400,
+                            marks={
+                                s.adc_lo: str(s.adc_lo),
+                                s.adc_hi // 4: str(s.adc_hi // 4),
+                                s.adc_hi // 2: str(s.adc_hi // 2),
+                                3 * s.adc_hi // 4: str(3 * s.adc_hi // 4),
+                                s.adc_hi - 1: str(s.adc_hi - 1),
+                            },
+                            tooltip={"placement": "bottom", "always_visible": True},
+                        ),
+                    ],
+                    style={"margin": "20px 50px"},
+                ),
+                html.Div(
+                    id="veto-fraction-text",
+                    style={
+                        "textAlign": "center",
+                        "fontSize": "1.2em",
+                        "margin": "10px 0",
+                    },
+                ),
+            ]
+        )
 
     def register_callbacks(self, app, get_results) -> None:
         @app.callback(
@@ -144,18 +146,28 @@ class VetoComponent(Component):
             v_ped, _ = h_ped.to_numpy()
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=centers, y=values,
-                mode="lines", line_shape="hvh",
-                name="All events",
-                fill="tozeroy", opacity=0.5,
-            ))
-            fig.add_trace(go.Scatter(
-                x=centers, y=v_ped,
-                mode="lines", line_shape="hvh",
-                name="Pedestal (TriggerMask=2)",
-                fill="tozeroy", opacity=0.5,
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=values,
+                    mode="lines",
+                    line_shape="hvh",
+                    name="All events",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=v_ped,
+                    mode="lines",
+                    line_shape="hvh",
+                    name="Pedestal (TriggerMask=2)",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
             fig.add_vline(
                 x=threshold,
                 line_dash="dash",

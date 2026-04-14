@@ -109,7 +109,9 @@ class RunProcessor:
             self._states[path] = state
 
         thread = threading.Thread(
-            target=self._worker, args=(path, state), daemon=True,
+            target=self._worker,
+            args=(path, state),
+            daemon=True,
         )
         thread.start()
         logger.info("Started background processing: %s", path)
@@ -119,7 +121,8 @@ class RunProcessor:
         try:
             step_size = get_settings().step_size
             for progress, entries, results in iter_process_run(
-                path, step_size=step_size,
+                path,
+                step_size=step_size,
             ):
                 state._update(
                     progress=progress,
@@ -134,7 +137,8 @@ class RunProcessor:
             state._update(status=RunStatus.ERROR, error=tb)
 
     def get_state(
-        self, path: str,
+        self,
+        path: str,
     ) -> tuple[RunStatus, float, int, dict[str, Any] | None, str | None]:
         """Return the current processing state for *path*.
 

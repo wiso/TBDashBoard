@@ -7,7 +7,7 @@ dispatch logic that sends batches to the right components.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import awkward as ak
 import numpy as np
@@ -55,6 +55,7 @@ class FakeComponent(Component):
 
     def tab_layout(self):
         from dash import html
+
         return html.Div()
 
     def register_callbacks(self, app, get_results) -> None:
@@ -188,9 +189,7 @@ class TestIterProcessRun:
 
         assert len(steps) == 2  # two batches
 
-    def test_progress_increases(
-        self, fake_metadata: dict, cernsps_batches: list[ak.Array]
-    ) -> None:
+    def test_progress_increases(self, fake_metadata: dict, cernsps_batches: list[ak.Array]) -> None:
         comp = FakeComponent("t", "T", {"CERNSPS2025": ["TriggerMask"]})
 
         with (
@@ -206,9 +205,7 @@ class TestIterProcessRun:
         assert progresses == sorted(progresses)
         assert progresses[-1] == pytest.approx(1.0)
 
-    def test_entries_accumulate(
-        self, fake_metadata: dict, cernsps_batches: list[ak.Array]
-    ) -> None:
+    def test_entries_accumulate(self, fake_metadata: dict, cernsps_batches: list[ak.Array]) -> None:
         comp = FakeComponent("t", "T", {"CERNSPS2025": ["TriggerMask"]})
 
         with (

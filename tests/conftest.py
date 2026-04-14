@@ -24,13 +24,15 @@ def cernsps_batch(rng: np.random.Generator) -> ak.Array:
     """
     n_events = 100
     n_adc = 224
-    return ak.Array({
-        "ADCs": rng.integers(0, 4096, size=(n_events, n_adc)).astype(np.float64),
-        "TriggerMask": rng.choice([1, 2], size=n_events),
-        "EventTime": np.sort(rng.uniform(1000.0, 2000.0, size=n_events)),
-        "EventSpill": rng.choice([0, 1, 2, 3], size=n_events),
-        "EventNumber": np.arange(n_events),
-    })
+    return ak.Array(
+        {
+            "ADCs": rng.integers(0, 4096, size=(n_events, n_adc)).astype(np.float64),
+            "TriggerMask": rng.choice([1, 2], size=n_events),
+            "EventTime": np.sort(rng.uniform(1000.0, 2000.0, size=n_events)),
+            "EventSpill": rng.choice([0, 1, 2, 3], size=n_events),
+            "EventNumber": np.arange(n_events),
+        }
+    )
 
 
 @pytest.fixture()
@@ -41,7 +43,9 @@ def sipm_batch(rng: np.random.Generator) -> ak.Array:
     """
     n_events = 80
     n_ch = 1024
-    return ak.Array({
-        "SiPM_HG": rng.uniform(0.0, 500.0, size=(n_events, n_ch)),
-        "SiPM_LG": rng.uniform(0.0, 200.0, size=(n_events, n_ch)),
-    })
+    return ak.Array(
+        {
+            "SiPM_HG": rng.uniform(0.0, 500.0, size=(n_events, n_ch)),
+            "SiPM_LG": rng.uniform(0.0, 200.0, size=(n_events, n_ch)),
+        }
+    )

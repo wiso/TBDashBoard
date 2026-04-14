@@ -19,11 +19,7 @@ from tb_monitor.themes import THEMES
 def _cher_channels() -> dict[int, str]:
     """Return {channel: label} for Cherenkov beam counters from settings."""
     s = get_settings()
-    return {
-        ch: label
-        for ch, label in s.special_channels.items()
-        if label.startswith("Cher")
-    }
+    return {ch: label for ch, label in s.special_channels.items() if label.startswith("Cher")}
 
 
 @dataclass
@@ -60,16 +56,16 @@ class CherenkovCounterComponent(Component):
     def create_state(self, path: str) -> CherCounterState:
         s = get_settings()
         channels = _cher_channels()
+
         def _make_hist() -> hist.Hist:
             return hist.Hist(hist.axis.Integer(s.adc_lo, s.adc_hi, name="adc", label="ADC"))
+
         return CherCounterState(
             all_events={ch: _make_hist() for ch in channels},
             pedestal={ch: _make_hist() for ch in channels},
         )
 
-    def fill_batch(
-        self, state: CherCounterState, tree_name: str, batch: ak.Array
-    ) -> None:
+    def fill_batch(self, state: CherCounterState, tree_name: str, batch: ak.Array) -> None:
         s = get_settings()
         adcs = np.asarray(batch["ADCs"], dtype=np.int64)
         mask_val = np.asarray(batch["TriggerMask"])
@@ -94,10 +90,14 @@ class CherenkovCounterComponent(Component):
         plots = []
         for ch in sorted(channels):
             label = channels[ch]
-            plots.append(html.Div([
-                html.H3(f"{label} (ch {ch}) ADC Distribution"),
-                dcc.Graph(id=f"cher-counter-{ch}-plot"),
-            ]))
+            plots.append(
+                html.Div(
+                    [
+                        html.H3(f"{label} (ch {ch}) ADC Distribution"),
+                        dcc.Graph(id=f"cher-counter-{ch}-plot"),
+                    ]
+                )
+            )
         return html.Div(
             style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "20px"},
             children=plots,
@@ -131,21 +131,32 @@ class CherenkovCounterComponent(Component):
             v_ped, _ = h_ped.to_numpy()
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=centers, y=v_all,
-                mode="lines", line_shape="hvh",
-                name="All events",
-                fill="tozeroy", opacity=0.5,
-            ))
-            fig.add_trace(go.Scatter(
-                x=centers, y=v_ped,
-                mode="lines", line_shape="hvh",
-                name=f"Pedestal (TriggerMask={get_settings().pedestal_trigger_mask})",
-                fill="tozeroy", opacity=0.5,
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=v_all,
+                    mode="lines",
+                    line_shape="hvh",
+                    name="All events",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=centers,
+                    y=v_ped,
+                    mode="lines",
+                    line_shape="hvh",
+                    name=f"Pedestal (TriggerMask={get_settings().pedestal_trigger_mask})",
+                    fill="tozeroy",
+                    opacity=0.5,
+                )
+            )
             fig.update_layout(
                 template=template,
-                xaxis_title="ADC", yaxis_title="Events",
+                xaxis_title="ADC",
+                yaxis_title="Events",
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig

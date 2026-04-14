@@ -78,21 +78,33 @@ def register_callbacks(app: Dash) -> None:
     def load_run(path: str | None):
         if not path:
             return (
-                no_update, no_update, True,
-                {"display": "none"}, "", _ERROR_STYLE_HIDDEN,
+                no_update,
+                no_update,
+                True,
+                {"display": "none"},
+                "",
+                _ERROR_STYLE_HIDDEN,
             )
         # If already done, skip straight to results
         status, *_ = processor.get_state(path)
         if status == RunStatus.DONE:
             return (
-                path, 0, True,
-                {"display": "none"}, "", _ERROR_STYLE_HIDDEN,
+                path,
+                0,
+                True,
+                {"display": "none"},
+                "",
+                _ERROR_STYLE_HIDDEN,
             )
         # Start background processing, enable polling
         processor.start(path)
         return (
-            path, 0, False,
-            {"display": "block", "marginBottom": "12px"}, "", _ERROR_STYLE_HIDDEN,
+            path,
+            0,
+            False,
+            {"display": "block", "marginBottom": "12px"},
+            "",
+            _ERROR_STYLE_HIDDEN,
         )
 
     # ── Interval: poll progress + update batch counter ──────────────
@@ -114,8 +126,14 @@ def register_callbacks(app: Dash) -> None:
     def poll_progress(n_intervals: int, path: str | None, current_batch: int):
         if not path:
             return (
-                no_update, no_update, {"display": "none"}, True,
-                no_update, no_update, no_update, no_update,
+                no_update,
+                no_update,
+                {"display": "none"},
+                True,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
             )
 
         status, progress, entries, results, error = processor.get_state(path)
@@ -136,10 +154,14 @@ def register_callbacks(app: Dash) -> None:
         if status == RunStatus.ERROR:
             msg = f"Error loading {path}:\n{error}"
             return (
-                bar_style, progress_text,
-                {"display": "none"}, True,
-                new_batch, "",
-                msg, _ERROR_STYLE_VISIBLE,
+                bar_style,
+                progress_text,
+                {"display": "none"},
+                True,
+                new_batch,
+                "",
+                msg,
+                _ERROR_STYLE_VISIBLE,
             )
 
         if status == RunStatus.DONE:
@@ -149,18 +171,26 @@ def register_callbacks(app: Dash) -> None:
             n_events = getattr(overview, "n_events", "?")
             info = f"Run {meta.get('runNumber', '?')} — {n_events} events"
             return (
-                bar_style, f"Done — {entries:,} entries",
-                {"display": "none"}, True,
-                new_batch, info,
-                "", _ERROR_STYLE_HIDDEN,
+                bar_style,
+                f"Done — {entries:,} entries",
+                {"display": "none"},
+                True,
+                new_batch,
+                info,
+                "",
+                _ERROR_STYLE_HIDDEN,
             )
 
         # Still processing
         return (
-            bar_style, progress_text,
-            {"display": "block", "marginBottom": "12px"}, False,
-            new_batch, "",
-            "", _ERROR_STYLE_HIDDEN,
+            bar_style,
+            progress_text,
+            {"display": "block", "marginBottom": "12px"},
+            False,
+            new_batch,
+            "",
+            "",
+            _ERROR_STYLE_HIDDEN,
         )
 
     # ── Tab rendering ───────────────────────────────────────────────
@@ -182,11 +212,13 @@ def register_callbacks(app: Dash) -> None:
 
         def _make_getter(component_name: str):
             """Closure to capture the component name."""
+
             def get_results(path: str) -> Any:
                 results = processor.get_results(path)
                 if results is None:
                     return None
                 return results.get(component_name)
+
             return get_results
 
         comp.register_callbacks(app, _make_getter(comp.name))

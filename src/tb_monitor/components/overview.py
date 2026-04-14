@@ -67,8 +67,11 @@ class OverviewComponent(Component):
             ),
             event_rate=hist.Hist(
                 hist.axis.Regular(
-                    get_settings().event_rate_bins, time_min, time_max,
-                    name="time", label="Event Time",
+                    get_settings().event_rate_bins,
+                    time_min,
+                    time_max,
+                    name="time",
+                    label="Event Time",
                 ),
             ),
             events_per_spill=hist.Hist(
@@ -124,15 +127,17 @@ class OverviewComponent(Component):
             pct = (values / total * 100) if total > 0 else values
             fig = go.Figure(
                 go.Bar(
-                    x=labels, y=values,
-                    marker_color=["#636EFA", "#EF553B"][:len(labels)],
+                    x=labels,
+                    y=values,
+                    marker_color=["#636EFA", "#EF553B"][: len(labels)],
                     text=[f"{p:.1f}%" for p in pct],
                     textposition="outside",
                 )
             )
             fig.update_layout(
                 template=template,
-                xaxis_title="Trigger Mask", yaxis_title="Events",
+                xaxis_title="Trigger Mask",
+                yaxis_title="Events",
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig
@@ -156,7 +161,8 @@ class OverviewComponent(Component):
             fig = go.Figure(go.Scatter(x=centers, y=values, mode="lines", line_shape="hv"))
             fig.update_layout(
                 template=template,
-                xaxis_title="Event Time", yaxis_title="Events / bin",
+                xaxis_title="Event Time",
+                yaxis_title="Events / bin",
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig
@@ -180,7 +186,8 @@ class OverviewComponent(Component):
             fig = go.Figure(go.Bar(x=spills, y=values))
             fig.update_layout(
                 template=template,
-                xaxis_title="Spill Number", yaxis_title="Events",
+                xaxis_title="Spill Number",
+                yaxis_title="Events",
                 margin=dict(l=50, r=30, t=30, b=50),
             )
             return fig

@@ -37,17 +37,14 @@ class TestLoadSettings:
 
     def test_valid_config_loads(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
-        cfg.write_text(
-            "[server]\nport = 9999\n\n"
-            "[processing]\nstep_size = 10000\n"
-        )
+        cfg.write_text("[server]\nport = 9999\n\n[processing]\nstep_size = 10000\n")
         s = load_settings(cfg)
         assert s.port == 9999
         assert s.step_size == 10000
 
     def test_partial_config_keeps_defaults(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
-        cfg.write_text("[server]\nhost = \"127.0.0.1\"\n")
+        cfg.write_text('[server]\nhost = "127.0.0.1"\n')
         s = load_settings(cfg)
         assert s.host == "127.0.0.1"
         assert s.port == 8050  # default preserved

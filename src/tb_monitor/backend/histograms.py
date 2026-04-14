@@ -111,8 +111,12 @@ def iter_process_run(
         intermediate finalized output for every component.
     """
     (
-        components, metadata, states,
-        tree_to_comps, tree_to_branches, total_entries,
+        components,
+        metadata,
+        states,
+        tree_to_comps,
+        tree_to_branches,
+        total_entries,
     ) = _prepare_run(path, components)
 
     t0 = time.perf_counter()
@@ -124,8 +128,7 @@ def iter_process_run(
         branch_list = tree_to_branches[tree_name]
         n_batches = 0
         n_entries = 0
-        for batch in iter_tree(path, tree_name, branches=branch_list,
-                               step_size=step_size):
+        for batch in iter_tree(path, tree_name, branches=branch_list, step_size=step_size):
             n_batches += 1
             batch_len = len(batch)
             n_entries += batch_len
@@ -139,7 +142,10 @@ def iter_process_run(
 
         logger.info(
             "Tree %s: %d batches, %d entries → %d components",
-            tree_name, n_batches, n_entries, len(comps),
+            tree_name,
+            n_batches,
+            n_entries,
+            len(comps),
         )
 
     # Always yield at least once (handles empty trees / zero entries).
@@ -173,7 +179,9 @@ def process_run(
     """
     results: dict[str, Any] = {}
     for _progress, _entries, results in iter_process_run(
-        path, step_size=step_size, components=components,
+        path,
+        step_size=step_size,
+        components=components,
     ):
         pass
     return results
