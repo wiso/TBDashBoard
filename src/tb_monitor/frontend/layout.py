@@ -81,6 +81,7 @@ def make_layout(run_options: list[dict]) -> html.Div:
                         id="run-selector",
                         options=run_options,
                         value=run_options[-1]["value"] if run_options else None,
+                        placeholder="No run files found" if not run_options else "Select a run…",
                         style={"width": "500px"},
                         clearable=False,
                     ),
